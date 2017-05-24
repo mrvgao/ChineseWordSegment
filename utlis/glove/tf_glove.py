@@ -143,7 +143,7 @@ class GloVeModel():
                         self.__context_input: j_s,
                         self.__cooccurrence_count: counts}
                     L, _ = session.run([self.__total_loss,  self.__optimizer], feed_dict=feed_dict)
-                    # logging.info('loss == {}'.format(L))
+                    logging.info('loss == {}'.format(L))
                     if should_write_summaries and (total_steps + 1) % summary_batch_interval == 0:
                         summary_str = session.run(self.__summary, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, total_steps)

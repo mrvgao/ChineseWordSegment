@@ -1,0 +1,17 @@
+*.txt
+*.ipynb
+*.pickle
+*.xml
+.json
+.json
+.data
+*.data
+*.json
+*.csv
+*.iml
+*.local
+*all_regions
+*data_preprocess/__pycache__
+nodejs-backend/
+.p
+*.p

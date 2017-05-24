@@ -1,11 +1,17 @@
+from utlis.glove import tf_glove as glove
 import jieba
 import pickle
+import logging
 
-sentences = []
+logging.basicConfig(level=logging.INFO)
 
-updated_news = 'updated_news.data'
 
-total_cut_word = [list(jieba.cut(line)) for line in open(updated_news).readlines()]
+def cut_all_words(content_file, cut_crops_save_file):
+    sentences = []
+    total_cut_word = [list(jieba.cut(line)) for line in open(content_file).readlines()]
+    with open(cut_crops_save_file, 'wb') as f:
+        pickle.dump(total_cut_word, f, pickle.HIGHEST_PROTOCOL)
 
-with open('latest_crops.pickle', 'wb') as f:
-    pickle.dump(total_cut_word, f, pickle.HIGHEST_PROTOCOL)
+    print('cut done!')
+
+

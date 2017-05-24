@@ -1,5 +1,4 @@
 from utlis.glove import tf_glove as glove
-import jieba
 import pickle
 
 import logging
