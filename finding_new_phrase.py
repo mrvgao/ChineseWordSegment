@@ -1,5 +1,6 @@
 import tensorflow as tf
 from sklearn.preprocessing import OneHotEncoder
+import numpy as np
 '''
 Use Word Vector way to get new phrase. 
 
@@ -33,9 +34,11 @@ import logging
 from data_preprocess.get_cms_news import clearify
 
 global_vector = pickle.load(open('data_preprocess/total_word_vectors_2.pickle', 'rb'))
-mini_vector = pickle.load(open('data_preprocess/updated_news/latest_vectors.pickle', 'rb'))
+mini_vector = pickle.load(open('data_preprocess/updated_news/latest_vectors_0523.pickle', 'rb'))
 global_word_to_id = {word: ID for ID, word in global_vector['id_to_word'].items()}
 mini_word_to_id = {word: ID for ID, word in mini_vector['id_to_word'].items()}
+
+cut = jieba.cut
 
 
 def get_w2v(word, vector, word2id):
@@ -66,39 +69,114 @@ def get_new_phrase_probability(previous, word):
     GLOBAL, LATEST = 'global', 'latest'
     distance1 = distance(get_vector(previous, GLOBAL), get_vector(word, GLOBAL))
     distance2 = distance(get_vector(previous, LATEST), get_vector(word, LATEST))
-    threshold = 0.5
-    # if distance1 < threshold:
-    #     return 1 - distance1
-    # elif distance1 < distance2:
-    #     return distance1
-    # else:
     if distance1 > distance2:
-        return (distance1 - distance2) / distance1
+        return (distance1 - distance2) / distance1, 'new'
     else:
-        return distance1 + 10
+        return distance1, 'old'
 
 
-def analyse_new_phrase(sentence):
+def is_phrase(Word1, Word2):
+    '''
+    Define word1 and word2 word1word2 could be a phrase or not. 
+    :param word1: 
+    :param word2: 
+    :return: True or False
+    '''
+    decrease_threshold = 0.4
+    distance_threshold = 1
+
+    new_phrase_prob = get_new_phrase_probability(Word1.word, Word2.word)
+
+    # if new_phrase_prob[1] == 'new' and new_phrase_prob[0] > decrease_threshold:
+    #     return True
+    # elif new_phrase_prob[1] == 'old' and new_phrase_prob[0] < distance_threshold:
+    #     return True
+    # else:
+    #     return False
+
+    if new_phrase_prob[1] == 'old':
+        if 0 < new_phrase_prob[0] < distance_threshold:
+            return True, 'old', new_phrase_prob[0] + 1
+        else:
+            return False, 'old', new_phrase_prob[0]
+    else:
+        if new_phrase_prob[0] > decrease_threshold:
+            return True, 'new', new_phrase_prob[0]
+        else:
+            return False, 'new', new_phrase_prob[0]
+
+
+def create_new_phrase(words_segment):
+    """
+    :param words_segment: [习近平, 主席] or [习近平]
+    :return:  [习近平主席] or None
+    """
+    words = [x.word for x in words_segment]
+    probs = [x.probability for x in words_segment]
+
+    if len(words_segment) <= 1:
+        return None
+    else:
+        return "".join(words), sum(probs[1:])/(len(probs)-1)
+        ## if use np.mean directly, when [a, b] is a phrase, if b is probability 0.9,
+        ## the average value of this [a, b] we only be 0.45, it's so small.
+
+
+def collect_new_phrase(detected_new_phrases, new_phrase):
+    if new_phrase:
+        if detected_new_phrases is None:
+            detected_new_phrases = []
+        detected_new_phrases.append(new_phrase)
+
+    return detected_new_phrases
+
+
+class Word:
+    def __init__(self, word, probability=0):
+        self.word = word
+        self.probability = probability
+
+
+def analysis_one_segment(segment):
+    detected_phrases = []
+
+    cut_words = cut(segment)
+    new_phrase_segments = []
+
+    for word in cut_words:
+        if len(new_phrase_segments) == 0:
+            new_phrase_segments.append(Word(word, 0))
+            continue
+
+        _phrase, is_phrase_type, new_phrase_prob = is_phrase(new_phrase_segments[-1], Word(word))
+
+        if _phrase:
+            new_phrase_segments.append(Word(word, new_phrase_prob))
+        else:
+            new_phrase = create_new_phrase(new_phrase_segments)
+            detected_phrases = collect_new_phrase(detected_phrases, new_phrase)
+            new_phrase_segments = []
+
+    if len(new_phrase_segments) != 0:
+        detected_phrases = collect_new_phrase(detected_phrases,
+                                              create_new_phrase(new_phrase_segments))
+
+    return detected_phrases
+
+
+def analyse_new_phrase(sentence, stop_word='|'):
     '''
     :param sentence:  A input sentence to test if there is a new phrase.
     :return:  The new phrases sorted by the probability.
     '''
 
-    cut_words = jieba.cut(sentence)
+    sentences = sentence.split(stop_word)
+    detected_new_phrases = []
 
-    previous = None
+    for string in sentences:
+        detected_new_phrases += analysis_one_segment(string)
 
-    new_phrases = {}
-    for index, word in enumerate(cut_words):
-        if index == 0:
-            previous = word
-            continue
-
-        new_phrase_prob = get_new_phrase_probability(previous, word)
-        new_phrases[(previous+word)] = new_phrase_prob
-        previous = word
-
-    return new_phrases
+    return detected_new_phrases
 
 
 def get_sentence_from_file(file_name):
@@ -113,29 +191,19 @@ def get_sentence_from_file(file_name):
     return sentences
 
 if __name__ == '__main__':
-    test_sentences = '''5月15日，在“一带一路”国际合作高峰论坛的领导人圆桌峰会上，
-    由龙泉青瓷制成的“丝路金桥”，连接起参加工作午宴的各国政要，以中国独特的文化符号，见证着古老的丝路精神。衢窑研究院·龙泉半闲堂所设计制作的青瓷成为2014APEC会议、2016杭州G20峰会和2017“一带一路”峰会唯一指定专用青瓷。2009年，龙泉青瓷传统烧制技艺被联合国教科文组织列入《人类非物质文化遗产代表作名录》。
-    龙泉青瓷独立项目入选世界级文化遗产，标志着世界陶瓷领域里零的突破，成为目前全球唯一的陶瓷类“人类非遗”项目。
-    新华社北京5月23日电  国家主席习近平23日就英国曼彻斯特市发生爆炸事件向英国女王伊丽莎白二世致慰问电，
-    对无辜遇难者表示深切的哀悼，对伤者和遇难者家属表示诚挚的慰问。习近平指出，在这一艰难时刻，
-    中国人民同英国人民坚定站在一起。\''''
-    # test_sentences = get_sentence_from_file('test_phrase.txt')
+    test_sentences = get_sentence_from_file('test_phrase.txt')
+    stop_word =  '|'
     test_sentences = clearify(test_sentences, http_input=False)
-    test_sentences = test_sentences.replace(' ', '|')
+    test_sentences = test_sentences.replace(' ', stop_word)
     print(list(jieba.cut(test_sentences)))
-    new_phrase_probs = analyse_new_phrase(test_sentences)
+    new_phrases = analyse_new_phrase(test_sentences, stop_word)
 
-    new_phrase_probs = sorted(new_phrase_probs.items(), key=operator.itemgetter(1), reverse=True)
+    new_discoveries = sorted([p for p in new_phrases if p[1] <= 1], key=lambda x: x[1], reverse=True)
+    tradition_phrases = sorted([p for p in new_phrases if p[1] > 1], key=lambda x: x[1])
 
-    tradition_phrase = [p for p in new_phrase_probs if p[1] > 10]
-    tradition_phrase = sorted(tradition_phrase, key=lambda x: x[1])
+    for phrase in new_discoveries:
+        print('new phrase: {}, probability: {}'.format(phrase[0], phrase[1]))
 
-    new_phrase = [p for p in new_phrase_probs if p[1] > 0 and p[1] <= 1]
-    new_phrase = sorted(new_phrase, key=lambda x: x[1], reverse=True)
-
-    for phrase in new_phrase:
-        print('new phrase: {}, probability:{}'.format(phrase[0], phrase[1]))
-
-    for phrase in tradition_phrase:
-        print('traditional phrase: {}', format(phrase[0]))
+    for phrase in tradition_phrases:
+        print('tradition phrase: {}, probability: {}'.format(phrase[0], 2-phrase[1]))
 
