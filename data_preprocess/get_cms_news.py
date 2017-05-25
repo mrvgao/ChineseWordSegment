@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import random
+import logging
 
 def clearify(content, http_input=True):
     if http_input:
@@ -10,10 +11,16 @@ def clearify(content, http_input=True):
     content = content.strip()
     white_space_regex = re.compile(r'[\n\r\t\xa0@]')
     content = white_space_regex.sub("", content)
-    quote_regx = re.compile(r'''['"、。，；;,!！“’”]''')
+    quote_regx = re.compile(r'''[|'"、。，；;,!！“’”<> ·《》]''')
     content = quote_regx.sub(" ", content)
     content = re.sub( '\s+', ' ', content).strip()
     return content
+
+
+def get_multiply_files_content(new_data_files, pure_content_file, sample=1.):
+    for file in new_data_files:
+        save_pure_content(file, pure_content_file, sample)
+        logging.info('{}: read done!'.format(file))
 
 
 def save_pure_content(new_file, pure_content_file, sample=1.):
