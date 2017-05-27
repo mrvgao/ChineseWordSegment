@@ -1,167 +1,136 @@
-import tensorflow as tf
-from sklearn.preprocessing import OneHotEncoder
 import numpy as np
-'''
-Use Word Vector way to get new phrase. 
-
-First: we get all the word vectors of all the words, use a big crops;
-
-Second: we get a sub word vectors from a mini crops which contains the new information updated;
-
-Third: For any words pair W1, W2 we get the distance of those two pair in big corps and updated crops;
-
-Forth: If the distance if more closed to the distance in big crops, we could classify this two words as a new
-phrase.
-
-Input is words, and these words's pos.
-X_i = [glovel_vector; latest_vector; pos]
-
-[X_i, X_[i+1]] shape = (2, D)
-
-(2, D) * (D, W) = (2, W)
-(3, D) * (D, W) = (3, W)
-
-(2, W) * (W_i, W_j) = (2, W_j)
-
-RNN
-'''
-
+from word import Word, Segment
 import pickle
 import jieba
-import operator
 from scipy import spatial
 import logging
 from data_preprocess.get_cms_news import clearify
-
-global_vector = pickle.load(open('data_preprocess/total_word_vectors_2.pickle', 'rb'))
-mini_vector = pickle.load(open('data_preprocess/updated_news/latest_vectors_0523.pickle', 'rb'))
-global_word_to_id = {word: ID for ID, word in global_vector['id_to_word'].items()}
-mini_word_to_id = {word: ID for ID, word in mini_vector['id_to_word'].items()}
-
-cut = jieba.cut
+import jieba.posseg as pseg
 
 
-def get_w2v(word, vector, word2id):
-    if word in word2id:
-        return vector['embedding'][word2id[word]]
-    else:
-        logging.info('no *{}* in embedding'.format(word))
-        return None
+global_vectors = pickle.load(open('data_preprocess/total_word_vectors_2.pickle', 'rb'))
+local_vectors= pickle.load(open('data_preprocess/updated_news/latest_vectors_22_24.pickle', 'rb'))
+global_word_to_id = {word: ID for ID, word in global_vectors['id_to_word'].items()}
+local_word_to_id = {word: ID for ID, word in local_vectors['id_to_word'].items()}
+global_vectors = global_vectors['embedding']
+local_vectors = local_vectors['embedding']
+
+cut = pseg.cut
 
 
-def get_vector(word, vector='global'):
-    if vector == 'global':
-        return get_w2v(word, global_vector, global_word_to_id)
-    elif vector == 'latest':
-        return get_w2v(word, mini_vector, mini_word_to_id)
-    else:
-        raise NameError('wrong vector name')
+def get_vector_by_word(word, word_id_map, vectors):
+    return vectors[word_id_map[word]] if word in word_id_map else None
 
 
-def distance(v1, v2):
-    if v1 is not None and v2 is not None:
-        return spatial.distance.cosine(v1, v2)
-    else:
-        return float('inf')
+def get_global_vector(word): return get_vector_by_word(word, global_word_to_id, global_vectors)
 
 
-def get_new_phrase_probability(previous, word):
-    GLOBAL, LATEST = 'global', 'latest'
-    distance1 = distance(get_vector(previous, GLOBAL), get_vector(word, GLOBAL))
-    distance2 = distance(get_vector(previous, LATEST), get_vector(word, LATEST))
-    if distance1 > distance2:
-        return (distance1 - distance2) / distance1, 'new'
-    else:
-        return distance1, 'old'
+def get_local_vector(word): return get_vector_by_word(word, local_word_to_id, local_vectors)
 
 
-def is_phrase(Word1, Word2):
-    '''
-    Define word1 and word2 word1word2 could be a phrase or not. 
+def get_distance(v1, v2, method='cosine'):
+    method_f_map = {
+        'cosine': spatial.distance.cosine,
+        'correlation': spatial.distance.correlation,
+        'euclidean': spatial.distance.euclidean,
+    }
+    return float('inf') if v1 is None or v2 is None else method_f_map[method](v1, v2)
+
+
+def get_words_global_distance(word1, word2):
+    return get_distance(get_global_vector(word1), get_global_vector(word2))
+
+
+def get_words_local_distance(word1, word2):
+    return get_distance(get_local_vector(word1), get_local_vector(word2))
+
+
+def distance_decrease(u, v): return u - v / u
+
+
+def get_consistent(word1, word2):
+    """
+    if word1 and word2 is consistent 
     :param word1: 
     :param word2: 
-    :return: True or False
-    '''
-    decrease_threshold = 0.4
-    distance_threshold = 1
+    :return: [0 - 1], 1 stands for very consistent.
+    """
+    global_distance = get_words_global_distance(word1, word2)
+    local_distance = get_words_local_distance(word1, word2)
+    pair_distance_decrease_ratio = distance_decrease(global_distance, local_distance)
 
-    new_phrase_prob = get_new_phrase_probability(Word1.word, Word2.word)
+    head_tail_distance = get_words_global_distance(word1[-1], word2[0])
+    head_tail_local_distance = get_words_local_distance(word1[-1], word2[0])
+    tail_head_decrease_ratio = distance_decrease(head_tail_distance, head_tail_local_distance)
 
-    # if new_phrase_prob[1] == 'new' and new_phrase_prob[0] > decrease_threshold:
-    #     return True
-    # elif new_phrase_prob[1] == 'old' and new_phrase_prob[0] < distance_threshold:
-    #     return True
+    sig = lambda x: 1 / (1 + np.exp(-(x - 0.2)))
+    already_consistent = sig(1 - min(global_distance, head_tail_distance))
+    new_consistent = max(pair_distance_decrease_ratio, tail_head_decrease_ratio)
+    return max(already_consistent, new_consistent)
+
+
+def get_new_phrase_probability(words_pair_consistent): return words_pair_consistent
+
+
+def could_concatenate(words_candidates, Word2):
+    consistent_threshold = 0.3
+    # if words_candidates[-1].is_verb():
+    #     consistent_threshold = 0.5
+    #
+    enhance_ratio = 1.3
+    consistent_threshold *= (enhance_ratio * len(words_candidates)-1)
+
+    # if not Word2.need_connect(phrase_strip=False):
+    #     return False, None
     # else:
-    #     return False
-
-    if new_phrase_prob[1] == 'old':
-        if 0 < new_phrase_prob[0] < distance_threshold:
-            return True, 'old', new_phrase_prob[0] + 1
-        else:
-            return False, 'old', new_phrase_prob[0]
-    else:
-        if new_phrase_prob[0] > decrease_threshold:
-            return True, 'new', new_phrase_prob[0]
-        else:
-            return False, 'new', new_phrase_prob[0]
-
-
-def create_new_phrase(words_segment):
-    """
-    :param words_segment: [习近平, 主席] or [习近平]
-    :return:  [习近平主席] or None
-    """
-    words = [x.word for x in words_segment]
-    probs = [x.probability for x in words_segment]
-
-    if len(words_segment) <= 1:
-        return None
-    else:
-        return "".join(words), sum(probs[1:])/(len(probs)-1)
-        ## if use np.mean directly, when [a, b] is a phrase, if b is probability 0.9,
-        ## the average value of this [a, b] we only be 0.45, it's so small.
+    prob = get_new_phrase_probability(get_consistent(words_candidates[-1].word, Word2.word))
+    return prob > consistent_threshold, prob
 
 
 def collect_new_phrase(detected_new_phrases, new_phrase):
     if new_phrase:
-        if detected_new_phrases is None:
-            detected_new_phrases = []
+        if detected_new_phrases is None: detected_new_phrases = []
         detected_new_phrases.append(new_phrase)
 
     return detected_new_phrases
 
 
-class Word:
-    def __init__(self, word, probability=0):
-        self.word = word
-        self.probability = probability
+def add_detected_new_phrase(new_phrase_segment, detected_phrases):
+    new_phrase, new_phrase_prob = new_phrase_segment.get_new_phrase()
+    detected_phrases = collect_new_phrase(detected_phrases, (new_phrase, new_phrase_prob, new_phrase_segment.word_segment))
+    return detected_phrases
 
 
 def analysis_one_segment(segment):
     detected_phrases = []
 
     cut_words = cut(segment)
-    new_phrase_segments = []
+    first_seg_word, first_seg_pos = next(cut_words)
 
-    for word in cut_words:
-        if len(new_phrase_segments) == 0:
-            new_phrase_segments.append(Word(word, 0))
-            continue
+    logging.debug("{} {}".format(first_seg_word, first_seg_pos))
 
-        _phrase, is_phrase_type, new_phrase_prob = is_phrase(new_phrase_segments[-1], Word(word))
+    new_phrase_segments = Segment(init=Word(first_seg_word, first_seg_pos))
+
+    new_cut_words = []
+
+    for word, pos in cut_words:
+        logging.debug("{} {}".format(word, pos))
+
+        _phrase, consistent = could_concatenate(new_phrase_segments, Word(word, pos))
 
         if _phrase:
-            new_phrase_segments.append(Word(word, new_phrase_prob))
+            new_phrase_segments.append(Word(word, pos, consistent))
         else:
-            new_phrase = create_new_phrase(new_phrase_segments)
-            detected_phrases = collect_new_phrase(detected_phrases, new_phrase)
-            new_phrase_segments = []
+            new_cut_words.append(new_phrase_segments.merge())
+            detected_phrases = add_detected_new_phrase(new_phrase_segments, detected_phrases)
+            new_phrase_segments = Segment(init=Word(word, pos))
 
-    if len(new_phrase_segments) != 0:
-        detected_phrases = collect_new_phrase(detected_phrases,
-                                              create_new_phrase(new_phrase_segments))
+    new_cut_words.append(new_phrase_segments.merge())
 
-    return detected_phrases
+    if len(new_phrase_segments) > 1:
+        detected_phrases = add_detected_new_phrase(new_phrase_segments, detected_phrases)
+
+    return detected_phrases, new_cut_words
 
 
 def analyse_new_phrase(sentence, stop_word='|'):
@@ -172,11 +141,14 @@ def analyse_new_phrase(sentence, stop_word='|'):
 
     sentences = sentence.split(stop_word)
     detected_new_phrases = []
+    new_cut_words = []
 
-    for string in sentences:
-        detected_new_phrases += analysis_one_segment(string)
+    for index, string in enumerate(sentences):
+        detected_phrases, cut_words = analysis_one_segment(string)
+        detected_new_phrases += detected_phrases
+        new_cut_words += cut_words
 
-    return detected_new_phrases
+    return detected_new_phrases, new_cut_words
 
 
 def get_sentence_from_file(file_name):
@@ -190,20 +162,57 @@ def get_sentence_from_file(file_name):
 
     return sentences
 
+
+def distinct(words):
+    single_words = {}
+
+    increase_ratio = 1.4
+
+    for w, p, segments in words:
+        if w in single_words:
+            if p <=1:
+                single_words[w][0] *= increase_ratio
+            else:
+                single_words[w][0] /= increase_ratio
+        else:
+            single_words[w] = [p, segments]
+
+    return single_words
+
+
+def test():
+    vector = get_vector_by_word('一带', global_word_to_id, global_vectors)
+    assert vector is not None
+    vector = get_vector_by_word('3一带', global_word_to_id, global_vectors)
+    assert vector is None
+
+    print('test done')
+
 if __name__ == '__main__':
+    test()
+
+    # logging.basicConfig(level=logging.DEBUG)
     test_sentences = get_sentence_from_file('test_phrase.txt')
-    stop_word =  '|'
+    stop_word = '|'
     test_sentences = clearify(test_sentences, http_input=False)
     test_sentences = test_sentences.replace(' ', stop_word)
     print(list(jieba.cut(test_sentences)))
-    new_phrases = analyse_new_phrase(test_sentences, stop_word)
+    new_phrases, new_cut = analyse_new_phrase(test_sentences, stop_word)
 
-    new_discoveries = sorted([p for p in new_phrases if p[1] <= 1], key=lambda x: x[1], reverse=True)
-    tradition_phrases = sorted([p for p in new_phrases if p[1] > 1], key=lambda x: x[1])
+    data_collected = 'phrase_detected.csv'
+    new_phrases = distinct(new_phrases)
+    # new_discoveries = distinct([p for p in new_phrases if p[1] <= 1])
+    # tradition_phrases = distinct([p for p in new_phrases if p[1] > 1])
+    #
+    # new_discoveries = sorted(new_discoveries.items(), key=lambda x: x[1], reverse=True)
+    # tradition_phrases = sorted(tradition_phrases.items(), key=lambda x: x[1])
+    #
+    print(new_cut)
+    #
+    for word, p_segs in sorted(new_phrases.items(), key=lambda x: x[1][0], reverse=True):
+        print('new phrase: {}, consistent: {}'.format(word, p_segs[0]))
+    #
+    # for phrase in tradition_phrases:
+    #     print('tradition phrase: {}, probability: {}'.format(phrase[0], 2-phrase[1]))
 
-    for phrase in new_discoveries:
-        print('new phrase: {}, probability: {}'.format(phrase[0], phrase[1]))
-
-    for phrase in tradition_phrases:
-        print('tradition phrase: {}, probability: {}'.format(phrase[0], 2-phrase[1]))
-
+# IDEA feature: User RNN?

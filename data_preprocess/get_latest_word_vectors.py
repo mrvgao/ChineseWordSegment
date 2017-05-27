@@ -19,7 +19,7 @@ def clear_file(dir, file_list):
             os.remove(path)
 
 
-def get_vectors_from_scratch(content_dir, force=False):
+def get_vectors_from_scratch(content_dir, force_load_news=False, force_reload_occorrence=False):
     content_dir = content_dir or 'test_w2v'
     updated_news = '20170522-0524-pure.data'
     cut_crops = 'cut_crops.pickle'
@@ -28,16 +28,23 @@ def get_vectors_from_scratch(content_dir, force=False):
     target_news = ['20170522.csv', '20170523.csv', '20170524.csv']
     target_news = [os.path.join(content_dir, f) for f in target_news]
 
-    if force:
+    if force_load_news:
         clear_file(content_dir, [updated_news, cut_crops, backup_pickle])
         get_cms_news.get_multiply_files_content(target_news, os.path.join(content_dir, updated_news))
         get_mini_cut_words.cut_all_words(content_file=os.path.join(content_dir, updated_news),
                                          cut_crops_save_file=os.path.join(content_dir, cut_crops))
 
     get_mini_vectors.get_words_vector(cut_crops=os.path.join(content_dir, cut_crops),
-                                      backup_pickle=os.path.join(content_dir, backup_pickle))
+                                      backup_pickle=os.path.join(content_dir, backup_pickle),
+                                      force_reload=force_reload_occorrence)
 
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
-    get_vectors_from_scratch('updated_news', force=True)
+    config = {
+        'content_dir': 'updated_news',
+        'force_load_news': False,
+        'force_reload_occorrence': False
+    }
+
+    get_vectors_from_scratch(**config)

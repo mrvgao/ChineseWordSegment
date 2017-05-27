@@ -4,7 +4,10 @@ import os
 from random import shuffle
 import tensorflow as tf
 import logging
-
+import pickle
+import os
+import random
+from tensorflow.contrib.tensorboard.plugins import projector
 
 class NotTrainedError(Exception):
     pass
@@ -14,7 +17,8 @@ class NotFitToCorpusError(Exception):
 
 class GloVeModel():
     def __init__(self, embedding_size, context_size, max_vocab_size=100000, min_occurrences=1,
-                 scaling_factor=3.0/4.0, cooccurrence_cap=100, batch_size=512, learning_rate=0.05):
+                 scaling_factor=3.0/4.0, cooccurrence_cap=100, batch_size=512,
+                 learning_rate=0.05, regularization=0.005, sample=0.5, force_reload=False):
         self.embedding_size = embedding_size
         if isinstance(context_size, tuple):
             self.left_context, self.right_context = context_size
@@ -33,18 +37,40 @@ class GloVeModel():
         self.__cooccurrence_matrix = None
         self.__embeddings = None
         self.id_words = {}  ## {1: 'some'}
+        self.occurance_file = 'occurance.pickle'
+        self.id_to_words = {}
+        self.regularization = regularization
+        self.sample = sample
+        self.force_reload = force_reload
 
     def fit_to_corpus(self, corpus):
-        self.__fit_to_corpus(corpus, self.max_vocab_size, self.min_occurrences,
-                             self.left_context, self.right_context)
+        if not self.force_reload and os.path.exists(self.occurance_file):
+            occurence_data = pickle.load(open(self.occurance_file, 'rb'))
+            self.__word_to_id = occurence_data['words_to_id']
+            self.__words = occurence_data['words']
+            self.__cooccurrence_matrix = occurence_data['cooccurrence_matrix']
+            self.id_to_words = occurence_data['id_to_words']
+            logging.info('load pickle finished!')
+        else:
+            if os.path.exists(self.occurance_file):
+                os.remove(self.occurance_file)
+                logging.info('delete occurence file')
+
+            self.__fit_to_corpus(corpus, self.max_vocab_size, self.min_occurrences,
+                                 self.left_context, self.right_context)
+
         self.__build_graph()
 
     def __fit_to_corpus(self, corpus, vocab_size, min_occurrences, left_size, right_size):
         word_counts = Counter()
         cooccurrence_counts = defaultdict(float)
-        for region in corpus:
+        for index, region in enumerate(corpus):
+            logging.info("{}/{}, {}%..".format(index, len(corpus), index*100/len(corpus)))
             word_counts.update(region)
             for l_context, word, r_context in _context_windows(region, left_size, right_size):
+                if random.random() > self.sample:
+                    continue
+
                 for i, context_word in enumerate(l_context[::-1]):
                     # add (1 / distance from focal word) for this pair
                     logging.debug(word)
@@ -62,6 +88,15 @@ class GloVeModel():
             for words, count in cooccurrence_counts.items()
             if words[0] in self.__word_to_id and words[1] in self.__word_to_id}
 
+        with open(self.occurance_file, 'wb') as f:
+            dump_data = {
+                'words': self.__words,
+                'words_to_id': self.__word_to_id,
+                'id_to_words': self.id_to_words,
+                'cooccurrence_matrix': self.__cooccurrence_matrix
+            }
+            pickle.dump(dump_data, f, pickle.HIGHEST_PROTOCOL)
+
     def __build_graph(self):
         self.__graph = tf.Graph()
         with self.__graph.as_default(), self.__graph.device(_device_for_node):
@@ -77,12 +112,13 @@ class GloVeModel():
             self.__cooccurrence_count = tf.placeholder(tf.float32, shape=[self.batch_size],
                                                        name="cooccurrence_count")
 
-            focal_embeddings = tf.Variable(
-                tf.random_uniform([self.vocab_size, self.embedding_size], 1.0, -1.0),
-                name="focal_embeddings")
-            context_embeddings = tf.Variable(
-                tf.random_uniform([self.vocab_size, self.embedding_size], 1.0, -1.0),
-                name="context_embeddings")
+            focal_embeddings = tf.get_variable(name='focal_embeddings',
+                                               shape=[self.vocab_size, self.embedding_size],
+                                               initializer=tf.contrib.layers.xavier_initializer())
+
+            context_embeddings = tf.get_variable(name='context_embeddings',
+                                                 shape=[self.vocab_size, self.embedding_size],
+                                                 initializer=tf.contrib.layers.xavier_initializer())
 
             focal_biases = tf.Variable(tf.random_uniform([self.vocab_size], 1.0, -1.0),
                                        name='focal_biases')
@@ -111,8 +147,22 @@ class GloVeModel():
                 tf.negative(log_cooccurrences)]))
 
             single_losses = tf.multiply(weighting_factor, distance_expr)
-            self.__total_loss = tf.reduce_sum(single_losses)
+
+            if self.regularization > 0:
+                reg = tf.reduce_sum(list(map(lambda x: tf.nn.l2_loss(x), [focal_embeddings, context_embeddings, focal_biases, context_biases])))
+                regularization_loss = 1/2 * self.regularization * reg
+            else:
+                regularization_loss = 0
+
+            self.__total_loss = tf.reduce_sum(single_losses) + self.regularization * regularization_loss
             tf.summary.scalar("GloVe_loss", self.__total_loss)
+            # tf.summary.histogram('focal_embedding', focal_embeddings)
+
+            # config = projector.ProjectorConfig()
+            # embedding = config.embeddings.add()
+            # embedding.tensor_name = focal_embeddings.name
+            # projector.visualize_embeddings()
+
             self.__optimizer = tf.train.AdagradOptimizer(self.learning_rate).minimize(
                 self.__total_loss)
             self.__summary = tf.summary.merge_all()
@@ -120,7 +170,7 @@ class GloVeModel():
             self.__combined_embeddings = tf.add(focal_embeddings, context_embeddings,
                                                 name="combined_embeddings")
 
-    def train(self, num_epochs, log_dir=None, summary_batch_interval=1000,
+    def train(self, num_epochs, log_dir=None, summary_batch_interval=100,
               tsne_epoch_interval=None):
         should_write_summaries = log_dir is not None and summary_batch_interval
         should_generate_tsne = log_dir is not None and tsne_epoch_interval
@@ -143,7 +193,8 @@ class GloVeModel():
                         self.__context_input: j_s,
                         self.__cooccurrence_count: counts}
                     L, _ = session.run([self.__total_loss,  self.__optimizer], feed_dict=feed_dict)
-                    logging.info('loss == {}'.format(L))
+                    if batch_index % 100 == 0:
+                        logging.info('loss == {}'.format(L))
                     if should_write_summaries and (total_steps + 1) % summary_batch_interval == 0:
                         summary_str = session.run(self.__summary, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, total_steps)

@@ -15,3 +15,6 @@
 nodejs-backend/
 .p
 *.p
+*.pyc
+/*.pyc
+utlis/glove/__pycache__/__init__.cpython-34.pyc utlis/glove/__pycache__/tf_glove.cpython-34.pyc

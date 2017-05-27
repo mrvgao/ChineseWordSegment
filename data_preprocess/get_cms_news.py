@@ -11,7 +11,7 @@ def clearify(content, http_input=True):
     content = content.strip()
     white_space_regex = re.compile(r'[\n\r\t\xa0@]')
     content = white_space_regex.sub("", content)
-    quote_regx = re.compile(r'''[|'"、。，；;,!！“’”<> ·《》]''')
+    quote_regx = re.compile(r'''[?？|'"、。，；;,!！“’”<> ·《》() （）\---—]''')
     content = quote_regx.sub(" ", content)
     content = re.sub( '\s+', ' ', content).strip()
     return content
