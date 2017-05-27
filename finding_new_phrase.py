@@ -73,18 +73,18 @@ def get_new_phrase_probability(words_pair_consistent): return words_pair_consist
 
 
 def could_concatenate(words_candidates, Word2):
-    consistent_threshold = 0.3
-    # if words_candidates[-1].is_verb():
-    #     consistent_threshold = 0.5
-    #
+    consistent_threshold = 0.4
+    if words_candidates[-1].is_verb():
+        consistent_threshold = 0.5
+
     enhance_ratio = 1.3
     consistent_threshold *= (enhance_ratio * len(words_candidates)-1)
 
-    # if not Word2.need_connect(phrase_strip=False):
-    #     return False, None
-    # else:
-    prob = get_new_phrase_probability(get_consistent(words_candidates[-1].word, Word2.word))
-    return prob > consistent_threshold, prob
+    if not Word2.need_connect(phrase_strip=False):
+        return False, None
+    else:
+        prob = get_new_phrase_probability(get_consistent(words_candidates[-1].word, Word2.word))
+        return prob > consistent_threshold, prob
 
 
 def collect_new_phrase(detected_new_phrases, new_phrase):

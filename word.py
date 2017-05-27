@@ -64,13 +64,13 @@ class Segment:
         self.word_segment.append(word)
 
     def get_new_phrase(self):
-        # self.strip()
+        self.strip()
 
         if len(self) > 1:
             probs = [x.probability for x in self.word_segment]
             return self.merge(), sum(probs[1:])/(len(probs)-1)
         else:
-            return None, 0, 0
+            return None, 0
 
     def merge(self):
         return "".join([x.word for x in self.word_segment])
