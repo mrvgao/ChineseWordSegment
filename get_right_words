@@ -149,7 +149,7 @@ def analyse_new_phrase(sentence, stop_word='|'):
         detected_new_phrases += detected_phrases
         new_cut_words += cut_words
 
-    return detected_new_phrases, new_cut_words
+    return list(jieba.posseg.cut(sentence))
 
 
 def get_sentence_from_file(file_name):

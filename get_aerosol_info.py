@@ -1,4 +1,4 @@
-import jieba.posseg as pseg
+from get_right_words import analyse_new_phrase
 
 
 def get_elements(pos):
@@ -34,7 +34,7 @@ def is_legal_format(words_seg):
 
 
 def main(string):
-    words_seg = list(pseg.cut(string))
+    words_seg = list(analyse_new_phrase(string))
     if len(words_seg) > 2 and is_legal_format(words_seg):
         return distinct_location(get_location(words_seg)), get_pm_number(words_seg)
     else:
