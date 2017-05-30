@@ -1,4 +1,4 @@
-from get_right_words import analyse_new_phrase
+from jieba import posseg as pseg
 
 
 def get_elements(pos):
@@ -34,7 +34,7 @@ def is_legal_format(words_seg):
 
 
 def main(string):
-    words_seg = list(analyse_new_phrase(string))
+    words_seg = list(pseg.cut(string))
     if len(words_seg) > 2 and is_legal_format(words_seg):
         return distinct_location(get_location(words_seg)), get_pm_number(words_seg)
     else:
@@ -52,19 +52,22 @@ def distinct_location(locations_pair):
 
 
 def change_to_segments(string):
-    strings = string.split(' ')
+    result = main(string)
 
-    results = []
-    for s in strings:
-        s = s.strip()
-        if s != '':
-            result = main(s)
-            if result: results += result
+    return result
 
-    return results
 
+def get_the_pair(result):
+    length = min(len(result[0]), len(result[1]))
+    result_pair = []
+
+    for i in range(length):
+        result_pair.append([result[0][i], result[1][i]])
+
+    return result_pair
 
 if __name__ == '__main__':
+    test_string_1 = "北京在28日的雾霾高达187，创下了本月的最高"
     test_string = """
     北京局部PM2.5逼近1000，日均浓度值或超标10倍，发布首个霾橙色预警
 
@@ -85,15 +88,10 @@ if __name__ == '__main__':
 
 　　从全国城市空气质量实时发布平台来看，华北的京津冀、东北三省、中部陕西、河南、湖北、湖南、安徽，以及东部沿海省市的部分城市，都出现了重度或严重污染，一条深褐色的“污染带”由东北往中部斜向穿越我国大部地区，小半个中国的空气质量都“脏”得要命。
 
-　　危害
-
-　　PM2.5影响呼吸道和心血管
-
-　　北京大学环境健康研究团队在国际权威期刊发表的研究结果显示，细颗粒物PM2.5等空气污染物是呼吸道和心血管疾病的重要风险因子。研究表明，空气污染可能首先诱发呼吸道局部氧化应激和炎症，进而导致全身性炎症和氧化性损伤。
-
-　　此外研究结果显示，大气细颗粒物及气态污染物暴露后数小时内，污染物浓度增加与交感/副交感神经功能的降低和血压的升高具有显著关联，全身低炎症水平和肥胖可能进一步加剧污染物急性暴露的心血管功能损伤。
     """
-    print(change_to_segments(test_string))
+    result = get_the_pair(change_to_segments(test_string))
+
+    print(result)
 
 
 
