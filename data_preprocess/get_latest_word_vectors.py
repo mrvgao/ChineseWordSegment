@@ -10,41 +10,62 @@ from data_preprocess import get_cms_news
 import logging
 import os
 
+import time
 
-def clear_file(dir, file_list):
+def clear_file(file_list, dir=None):
     for file in file_list:
-        path = os.path.join(dir, file)
+        if dir:
+            path = os.path.join(dir, file)
+        else:
+            path = file
         if os.path.exists(path):
             logging.info('clearing...{}'.format(path))
             os.remove(path)
 
 
-def get_vectors_from_scratch(content_dir, force_load_news=False, force_reload_occorrence=False):
-    content_dir = content_dir or 'test_w2v'
-    updated_news = '20170522-0524-pure.data'
-    cut_crops = 'cut_crops.pickle'
-    backup_pickle = 'latest_vectors.pickle'
+def get_backup_filename(directory, begin, end):
+    file_name = "{}-{}.pickle".format(begin, end) if begin != end else begin + 'pickle'
+    return os.path.join(directory, file_name)
 
-    target_news = ['20170522.csv', '20170523.csv', '20170524.csv']
-    target_news = [os.path.join(content_dir, f) for f in target_news]
+
+def get_vectors_from_scratch(target_news, force_load_news=False, force_reload_occorrence=False, file_type='.csv'):
+    if file_type == '.csv':
+        content_dir = "updated_news"
+    else:
+        content_dir = ""
+
+    word_vector_dir = 'word_vectors'
+    cut_word_dir = 'cutted_words'
+    clearify_content_dir = 'clearify_content'
+
+    vectors = get_backup_filename(word_vector_dir, target_news[0], target_news[-1])
+    cut_words = get_backup_filename(cut_word_dir, target_news[0], target_news[-1])
+    clearify_content = get_backup_filename(clearify_content_dir, target_news[0], target_news[-1])
+
+    news_file = [string+file_type for string in target_news]
+    news_file = [os.path.join(content_dir, f) for f in news_file]
 
     if force_load_news:
-        clear_file(content_dir, [updated_news, cut_crops, backup_pickle])
-        get_cms_news.get_multiply_files_content(target_news, os.path.join(content_dir, updated_news))
-        get_mini_cut_words.cut_all_words(content_file=os.path.join(content_dir, updated_news),
-                                         cut_crops_save_file=os.path.join(content_dir, cut_crops))
+        clear_file([vectors, cut_words, clearify_content])
+        get_cms_news.get_multiply_files_content(news_file, clearify_content)
+        get_mini_cut_words.cut_all_words(content_file=clearify_content, cut_crops_save_file=cut_words)
 
-    get_mini_vectors.get_words_vector(cut_crops=os.path.join(content_dir, cut_crops),
-                                      backup_pickle=os.path.join(content_dir, backup_pickle),
-                                      force_reload=force_reload_occorrence)
+    # get_mini_vectors.get_words_vector(cut_crops=cut_words, backup_pickle=vectors, force_reload=force_reload_occorrence)
 
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
     config = {
-        'content_dir': 'updated_news',
-        'force_load_news': False,
-        'force_reload_occorrence': False
+        'force_load_news': True,
+        'force_reload_occorrence': False,
+        # 'target_news' : ['20170522', '20170523', '20170524']
+        'target_news': ['train_content'],
+        'file_type': ".txt"
     }
 
+    begin = time.time()
+
     get_vectors_from_scratch(**config)
+
+    end = time.time()
+    print('used time: {} s'.format(end-begin))

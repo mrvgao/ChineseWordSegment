@@ -75,17 +75,17 @@ def get_new_phrase_probability(words_pair_consistent): return words_pair_consist
 
 def could_concatenate(words_candidates, Word2):
     consistent_threshold = 0.5
-    # if words_candidates[-1].is_verb():
-    #     consistent_threshold = 0.5
+    if words_candidates[-1].is_verb():
+        consistent_threshold = 0.5
 
     enhance_ratio = 1.3
     consistent_threshold *= (enhance_ratio ** len(words_candidates))
     #
-    # if not Word2.need_connect(phrase_strip=False):
-    #     return False, None
-    # else:
-    prob = get_new_phrase_probability(get_consistent(words_candidates[-1].word, Word2.word))
-    return prob > consistent_threshold, prob
+    if not Word2.need_connect(phrase_strip=False):
+        return False, None
+    else:
+        prob = get_new_phrase_probability(get_consistent(words_candidates[-1].word, Word2.word))
+        return prob > consistent_threshold, prob
 
 
 def collect_new_phrase(detected_new_phrases, new_phrase):
@@ -193,14 +193,14 @@ if __name__ == '__main__':
     test()
 
     # logging.basicConfig(level=logging.DEBUG)
-    test_sentences = get_sentence_from_file('data_preprocess/updated_news/20170522-0524-pure.data')
+    test_sentences = get_sentence_from_file('test_phrase.txt')
     stop_word = '|'
     test_sentences = clearify(test_sentences, http_input=False)
     test_sentences = test_sentences.replace(' ', stop_word)
     print(list(jieba.cut(test_sentences)))
     new_phrases, new_cut = analyse_new_phrase(test_sentences, stop_word)
 
-    data_collected = 'phrase_detected.csv'
+    data_collected = 'new_phrase_detected.csv'
     new_phrases = distinct(new_phrases)
     # new_discoveries = distinct([p for p in new_phrases if p[1] <= 1])
     # tradition_phrases = distinct([p for p in new_phrases if p[1] > 1])
@@ -210,7 +210,7 @@ if __name__ == '__main__':
     #
     print(new_cut)
     #
-    with open(data_collected, 'a') as f:
+    with open(data_collected, 'w') as f:
         for word, p_segs in sorted(new_phrases.items(), key=lambda x: x[1][0], reverse=True):
             if word is not None:
                 print('new phrase: {}, consistent: {}'.format(word, p_segs[0]))

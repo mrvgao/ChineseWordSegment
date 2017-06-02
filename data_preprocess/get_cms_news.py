@@ -24,9 +24,14 @@ def get_multiply_files_content(new_data_files, pure_content_file, sample=1.):
 
 
 def save_pure_content(new_file, pure_content_file, sample=1.):
-    cms = pd.read_csv(new_file)
+    CSV, NORMAL = 'csv', 'normal'
+    file_type = CSV if new_file.endswith('.csv') else NORMAL
+    if file_type == CSV:
+        cms = pd.read_csv(new_file)
+        databases = cms.iterrows()
+    else:
+        databases = open(new_file).readlines()
 
-    databases = cms.iterrows()
     with open(pure_content_file, 'a') as f:
         for index, r in enumerate(databases):
             if index % 100 == 0:
@@ -36,8 +41,11 @@ def save_pure_content(new_file, pure_content_file, sample=1.):
                 continue
 
             try:
-                content = r[1][2] + r[1][17]
-                content = clearify(content)
+                if file_type == CSV:
+                    content = r[1][2] + r[1][17]
+                    content = clearify(content)
+                else:
+                    content = r
                 f.write(content + '\n')
             except TypeError:
                 print(r)

@@ -64,7 +64,7 @@ class Segment:
         self.word_segment.append(word)
 
     def get_new_phrase(self):
-        # self.strip()
+        self.strip()
 
         if len(self) > 1:
             probs = [x.probability for x in self.word_segment]

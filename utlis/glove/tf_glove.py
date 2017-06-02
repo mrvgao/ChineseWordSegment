@@ -8,6 +8,7 @@ import pickle
 import os
 import random
 from tensorflow.contrib.tensorboard.plugins import projector
+import numpy as np
 
 class NotTrainedError(Exception):
     pass
@@ -17,7 +18,7 @@ class NotFitToCorpusError(Exception):
 
 class GloVeModel():
     def __init__(self, embedding_size, context_size, max_vocab_size=100000, min_occurrences=1,
-                 scaling_factor=3.0/4.0, cooccurrence_cap=100, batch_size=512,
+                 scaling_factor=3.0/4.0, cooccurrence_cap=100, batch_size=128,
                  learning_rate=0.05, regularization=0.005, sample=0.5, force_reload=False):
         self.embedding_size = embedding_size
         if isinstance(context_size, tuple):
@@ -42,6 +43,7 @@ class GloVeModel():
         self.regularization = regularization
         self.sample = sample
         self.force_reload = force_reload
+        self.vis_labels = 'latest_vec_log/metadata.tsv'
 
     def fit_to_corpus(self, corpus):
         if not self.force_reload and os.path.exists(self.occurance_file):
@@ -51,6 +53,11 @@ class GloVeModel():
             self.__cooccurrence_matrix = occurence_data['cooccurrence_matrix']
             self.id_to_words = occurence_data['id_to_words']
             logging.info('load pickle finished!')
+
+            with open(self.vis_labels, 'w') as f:
+                f.write('Index\tLabel\n')
+                for index, word in self.id_to_words.items():
+                    f.write("{}\t{}\n".format(index, word))
         else:
             if os.path.exists(self.occurance_file):
                 os.remove(self.occurance_file)
@@ -83,6 +90,7 @@ class GloVeModel():
                         if count >= min_occurrences]
         self.__word_to_id = {word: i for i, word in enumerate(self.__words)}
         self.id_to_words = {self.__word_to_id[word]: word for word in self.__word_to_id}
+
         self.__cooccurrence_matrix = {
             (self.__word_to_id[words[0]], self.__word_to_id[words[1]]): count
             for words, count in cooccurrence_counts.items()
@@ -96,6 +104,7 @@ class GloVeModel():
                 'cooccurrence_matrix': self.__cooccurrence_matrix
             }
             pickle.dump(dump_data, f, pickle.HIGHEST_PROTOCOL)
+
 
     def __build_graph(self):
         self.__graph = tf.Graph()
@@ -149,40 +158,42 @@ class GloVeModel():
             single_losses = tf.multiply(weighting_factor, distance_expr)
 
             if self.regularization > 0:
-                reg = tf.reduce_sum(list(map(lambda x: tf.nn.l2_loss(x), [focal_embeddings, context_embeddings, focal_biases, context_biases])))
+                reg = tf.reduce_sum([tf.nn.l2_loss(focal_embeddings),
+                                     tf.nn.l2_loss(context_embeddings)])
+
                 regularization_loss = 1/2 * self.regularization * reg
             else:
                 regularization_loss = 0
 
             self.__total_loss = tf.reduce_sum(single_losses) + self.regularization * regularization_loss
             tf.summary.scalar("GloVe_loss", self.__total_loss)
-            # tf.summary.histogram('focal_embedding', focal_embeddings)
+            tf.summary.histogram('focal_embedding', focal_embeddings)
 
-            # config = projector.ProjectorConfig()
-            # embedding = config.embeddings.add()
-            # embedding.tensor_name = focal_embeddings.name
-            # projector.visualize_embeddings()
+            config = projector.ProjectorConfig()
+            embedding = config.embeddings.add()
 
-            self.__optimizer = tf.train.AdagradOptimizer(self.learning_rate).minimize(
-                self.__total_loss)
-            self.__summary = tf.summary.merge_all()
+            self.__optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate).minimize(self.__total_loss)
+            # self.__optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.__total_loss)
+            self.merged = tf.summary.merge_all()
 
             self.__combined_embeddings = tf.add(focal_embeddings, context_embeddings,
                                                 name="combined_embeddings")
 
     def train(self, num_epochs, log_dir=None, summary_batch_interval=100,
               tsne_epoch_interval=None):
+
+        embedding_visualiza_interval = 500
         should_write_summaries = log_dir is not None and summary_batch_interval
         should_generate_tsne = log_dir is not None and tsne_epoch_interval
         batches = self.__prepare_batches()
         total_steps = 0
         with tf.Session(graph=self.__graph) as session:
             if should_write_summaries:
-                summary_writer = tf.summary.FileWriter(log_dir, graph_def=session.graph_def)
+                summary_writer = tf.summary.FileWriter(log_dir, graph=session.graph)
             tf.global_variables_initializer().run()
             for epoch in range(num_epochs):
                 print('epoch: {}.'.format(epoch))
-                shuffle(batches)
+                # shuffle(batches)
                 for batch_index, batch in enumerate(batches):
                     i_s, j_s, counts = batch
                     if len(counts) != self.batch_size:
@@ -192,17 +203,22 @@ class GloVeModel():
                         self.__focal_input: i_s,
                         self.__context_input: j_s,
                         self.__cooccurrence_count: counts}
-                    L, _ = session.run([self.__total_loss,  self.__optimizer], feed_dict=feed_dict)
+                    L, _ = session.run([self.__total_loss, self.__optimizer], feed_dict=feed_dict)
                     if batch_index % 100 == 0:
-                        logging.info('loss == {}'.format(L))
+                        logging.info('{}/{} loss == {}'.format(batch_index, len(batches), L))
                     if should_write_summaries and (total_steps + 1) % summary_batch_interval == 0:
-                        summary_str = session.run(self.__summary, feed_dict=feed_dict)
+                        summary_str = session.run(self.merged, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, total_steps)
+
+                    # if total_steps % embedding_visualiza_interval == 0:
+                    #     saver = tf.train.Saver()
+                    #     saver.save(session, os.path.join(log_dir, 'model.ckpt'), total_steps)
+
                     total_steps += 1
-                if should_generate_tsne and (epoch + 1) % tsne_epoch_interval == 0:
-                    current_embeddings = self.__combined_embeddings.eval()
-                    output_path = os.path.join(log_dir, "epoch{:03d}.png".format(epoch + 1))
-                    self.generate_tsne(output_path, embeddings=current_embeddings)
+                # if should_generate_tsne and (epoch + 1) % tsne_epoch_interval == 0:
+                #     current_embeddings = self.__combined_embeddings.eval()
+                #     output_path = os.path.join(log_dir, "epoch{:03d}.png".format(epoch + 1))
+                #     self.generate_tsne(output_path, embeddings=current_embeddings)
             self.__embeddings = self.__combined_embeddings.eval()
             if should_write_summaries:
                 summary_writer.close()
