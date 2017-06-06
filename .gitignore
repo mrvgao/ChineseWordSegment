@@ -18,3 +18,11 @@ nodejs-backend/
 *.pyc
 /*.pyc
 utlis/glove/__pycache__/__init__.cpython-34.pyc utlis/glove/__pycache__/tf_glove.cpython-34.pyc
+pai_deploy/
+pai_deploy pai_example.py pai_train.tar.gz
+pai_train.tar.gz
+*pickle
+*npy
+*/_vec_log/
+*/*_vec_log/
+.idea/.name
