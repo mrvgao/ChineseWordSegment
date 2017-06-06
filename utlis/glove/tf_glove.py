@@ -18,7 +18,7 @@ class NotFitToCorpusError(Exception):
 
 class GloVeModel():
     def __init__(self, embedding_size, context_size, max_vocab_size=100000, min_occurrences=1,
-                 scaling_factor=3.0/4.0, cooccurrence_cap=100, batch_size=128,
+                 scaling_factor=3.0/4.0, cooccurrence_cap=100, batch_size=256,
                  learning_rate=0.05, regularization=0.005, sample=0.5, force_reload=False):
         self.embedding_size = embedding_size
         if isinstance(context_size, tuple):
@@ -44,6 +44,7 @@ class GloVeModel():
         self.sample = sample
         self.force_reload = force_reload
         self.vis_labels = 'latest_vec_log/metadata.tsv'
+        self.need_write = False
 
     def fit_to_corpus(self, corpus):
         if not self.force_reload and os.path.exists(self.occurance_file):
@@ -157,13 +158,13 @@ class GloVeModel():
 
             single_losses = tf.multiply(weighting_factor, distance_expr)
 
-            if self.regularization > 0:
-                reg = tf.reduce_sum([tf.nn.l2_loss(focal_embeddings),
-                                     tf.nn.l2_loss(context_embeddings)])
-
+            if self.regularization > 0 and random.random() < 0.3 :
+                reg = tf.reduce_sum(tf.nn.l2_loss(focal_embeddings))
+                self.need_write = False
                 regularization_loss = 1/2 * self.regularization * reg
             else:
                 regularization_loss = 0
+                self.need_write = True
 
             self.__total_loss = tf.reduce_sum(single_losses) + self.regularization * regularization_loss
             tf.summary.scalar("GloVe_loss", self.__total_loss)
@@ -172,7 +173,11 @@ class GloVeModel():
             config = projector.ProjectorConfig()
             embedding = config.embeddings.add()
 
-            self.__optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate).minimize(self.__total_loss)
+            # global_step = tf.Variable(0, trainable=False)
+            #
+            # learning_rate = tf.train.exponential_decay(self.learning_rate, global_step, 5000, 0.95, staircase=True)
+
+            self.__optimizer = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.__total_loss)
             # self.__optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.__total_loss)
             self.merged = tf.summary.merge_all()
 
@@ -181,6 +186,8 @@ class GloVeModel():
 
     def train(self, num_epochs, log_dir=None, summary_batch_interval=100,
               tsne_epoch_interval=None):
+
+        # TODO: Implement Early Stop
 
         embedding_visualiza_interval = 500
         should_write_summaries = log_dir is not None and summary_batch_interval
@@ -204,9 +211,9 @@ class GloVeModel():
                         self.__context_input: j_s,
                         self.__cooccurrence_count: counts}
                     L, _ = session.run([self.__total_loss, self.__optimizer], feed_dict=feed_dict)
-                    if batch_index % 100 == 0:
+                    if self.need_write and batch_index % 100 == 0:
                         logging.info('{}/{} loss == {}'.format(batch_index, len(batches), L))
-                    if should_write_summaries and (total_steps + 1) % summary_batch_interval == 0:
+                    if self.need_write and should_write_summaries and (total_steps + 1) % summary_batch_interval == 0:
                         summary_str = session.run(self.merged, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, total_steps)
 

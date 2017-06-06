@@ -8,19 +8,20 @@ def get_words_vector(cut_crops, backup_pickle, force_reload=False):
         total_cut_words = pickle.load(f)
 
     config = {
-        'embedding_size': 25,
+        'embedding_size': 15,
         'context_size': 3,
-        'learning_rate': 0.05,
-        'sample': 0.8,
+        'learning_rate': 0.03,
+        'sample': 1.0,
         'force_reload': force_reload,
-        'regularization': 0.01
+        'regularization': 0.01,
+        'batch_size': 256,
     }
     model = glove.GloVeModel(**config)
     ## noting embedding_size for cms_news 0.5,  10 is so small.
 
     model.fit_to_corpus(total_cut_words)
 
-    model.train(num_epochs=10, log_dir='latest_vec_log')
+    model.train(num_epochs=60, log_dir='latest_vec_log')
 
     with open(backup_pickle, 'wb') as f:
         pickle.dump(model.get_trained_embedding(), f, pickle.HIGHEST_PROTOCOL)

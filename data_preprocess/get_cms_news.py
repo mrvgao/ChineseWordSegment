@@ -10,17 +10,40 @@ def clearify(content, http_input=True):
         content = soup.get_text()
     content = content.strip()
     white_space_regex = re.compile(r'[\n\r\t\xa0@]')
-    content = white_space_regex.sub("", content)
-    quote_regx = re.compile(r'''[?？|'"、。，；;,!！“’”<> ·《》() （）\---—]''')
+    content = white_space_regex.sub("。", content)
+    quote_regx = re.compile(r'''[?？|'"、。，；;,!！“’”<> 《》() （）\---—]''')
     content = quote_regx.sub(" ", content)
     content = re.sub( '\s+', ' ', content).strip()
     return content
 
 
-def get_multiply_files_content(new_data_files, pure_content_file, sample=1.):
+def get_multiply_files_content(new_data_files, pure_content_file, sample=1., original='cms'):
+    func_map = {
+        'cms': save_pure_content,
+        'fm': get_fm_database
+    }
+
+    func = func_map[original]
+
     for file in new_data_files:
-        save_pure_content(file, pure_content_file, sample)
+        func(file, pure_content_file, sample)
         logging.info('{}: read done!'.format(file))
+
+
+def get_fm_database(new_file, pure_content_file, sample=1.):
+    content = pd.read_csv(new_file)
+    database = content.iterrows()
+
+    with open(pure_content_file, 'a') as f:
+        for index, r in enumerate(database):
+            if index % 100 == 0:
+                print(index)
+            try:
+                content = " ".join([r[1][2], r[1][3], r[1][4]])
+                content = clearify(content)
+                f.write(content)
+            except TypeError:
+                print(content)
 
 
 def save_pure_content(new_file, pure_content_file, sample=1.):

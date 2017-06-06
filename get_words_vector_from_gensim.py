@@ -7,9 +7,10 @@ def train_word2vec(file):
     with open(file, 'rb') as f:
         sentences = pickle.load(f)
 
-    model = Word2Vec(sentences, size=50, window=3, min_count=2, workers=4)
+    model = Word2Vec(sentences, size=250, window=5, min_count=1, workers=4)
 
-    persist = 'data_preprocess/word_vectors/gensim_hudong_wiki.pickle'
+    persist = 'data_preprocess/word_vectors/gensim_hudong_wiki_250.pickle'
+    # persist = 'data_preprocess/word_vectors/gensim_fm_0524.pickle'
     model.save(persist)
 
 if __name__ == '__main__':

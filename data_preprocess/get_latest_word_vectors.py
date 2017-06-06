@@ -28,7 +28,7 @@ def get_backup_filename(directory, begin, end):
     return os.path.join(directory, file_name)
 
 
-def get_vectors_from_scratch(target_news, force_load_news=False, force_reload_occorrence=False, file_type='.csv'):
+def get_vectors_from_scratch(target_news, force_load_news=False, force_reload_occorrence=False, file_type='.csv', original='cms'):
     if file_type == '.csv':
         content_dir = "updated_news"
     else:
@@ -47,20 +47,20 @@ def get_vectors_from_scratch(target_news, force_load_news=False, force_reload_oc
 
     if force_load_news:
         clear_file([vectors, cut_words, clearify_content])
-        get_cms_news.get_multiply_files_content(news_file, clearify_content)
+        get_cms_news.get_multiply_files_content(news_file, clearify_content, original=original)
         get_mini_cut_words.cut_all_words(content_file=clearify_content, cut_crops_save_file=cut_words)
 
-    # get_mini_vectors.get_words_vector(cut_crops=cut_words, backup_pickle=vectors, force_reload=force_reload_occorrence)
+    get_mini_vectors.get_words_vector(cut_crops=cut_words, backup_pickle=vectors, force_reload=force_reload_occorrence)
 
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
     config = {
-        'force_load_news': True,
+        'force_load_news': False,
         'force_reload_occorrence': False,
         # 'target_news' : ['20170522', '20170523', '20170524']
-        'target_news': ['train_content'],
-        'file_type': ".txt"
+        'target_news': ['sqlResult_1262716_0524'],
+        'original': 'fm'
     }
 
     begin = time.time()
