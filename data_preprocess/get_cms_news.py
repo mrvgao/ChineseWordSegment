@@ -4,7 +4,8 @@ import re
 import random
 import logging
 
-def clearify(content, http_input=True):
+
+def clarify(content, http_input=True):
     if http_input:
         soup = BeautifulSoup(content, 'html.parser')
         content = soup.get_text()
@@ -40,7 +41,7 @@ def get_fm_database(new_file, pure_content_file, sample=1.):
                 print(index)
             try:
                 content = " ".join([r[1][2], r[1][3], r[1][4]])
-                content = clearify(content)
+                content = clarify(content)
                 f.write(content)
             except TypeError:
                 print(content)
@@ -66,7 +67,7 @@ def save_pure_content(new_file, pure_content_file, sample=1.):
             try:
                 if file_type == CSV:
                     content = r[1][2] + r[1][17]
-                    content = clearify(content)
+                    content = clarify(content)
                 else:
                     content = r
                 f.write(content + '\n')

@@ -1,7 +1,7 @@
 from word import Word, Segment
 import jieba
 import logging
-from data_preprocess.get_cms_news import clearify
+from data_preprocess.get_cms_news import clarify
 from utlis.get_word_vector_by_gensim import get_consistent
 import jieba.posseg as pseg
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
     test_sentences = get_sentence_from_file('test_phrase.txt')
     stop_word = '|'
-    test_sentences = clearify(test_sentences, http_input=False)
+    test_sentences = clarify(test_sentences, http_input=False)
     test_sentences = test_sentences.replace(' ', stop_word)
     print(list(jieba.cut(test_sentences)))
     new_phrases, new_cut = analyse_new_phrase(test_sentences, stop_word)

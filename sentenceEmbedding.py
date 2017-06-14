@@ -30,7 +30,6 @@ def sentence2Vec(string):
         word_vector = get_word_vector(string_padding[index])
 
         if word_vector is None:
-            print(string_padding[index])
             continue
 
         weight = get_word(string_padding[index], string_padding[index-1], string_padding[index+1])
@@ -51,8 +50,9 @@ def get_sentence_vector(sentence):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    test_sentene = """"共享单车"征求意见六大看点不容错过"""
+    test_sentene = """"听附近的居民说"""
 
     sentence_vector = get_sentence_vector(test_sentene)
 
     assert sentence_vector is not None
+    print(sentence_vector)

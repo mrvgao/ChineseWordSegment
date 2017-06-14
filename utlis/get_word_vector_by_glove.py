@@ -25,7 +25,7 @@ def get_distance(v1, v2, method='cosine'):
         'correlation': spatial.distance.correlation,
         'euclidean': spatial.distance.euclidean,
     }
-    return float('inf') if v1 is None or v2 is None else method_f_map[method](v1, v2)
+    return -1 if v1 is None or v2 is None else method_f_map[method](v1, v2)  # cos(\theta) \in [-1, 1]
 
 
 def get_words_global_distance(word1, word2):
