@@ -1,14 +1,15 @@
 from summary.text_summary import *
 from summary.utils import *
+import logging
 
 
-def get_complete_sentences_with_corelations(sentences, single_subsentence_corelations, text):
+def get_complete_sentences_with_correlations(sentences, single_subsentence_correlations, text):
     complete_sentences = []
-    complete_sentences_corelations = []
+    complete_sentences_correlations = []
 
-    corelations = [None if is_outliner(x, single_subsentence_corelations) else x for x in
-                   single_subsentence_corelations]
-    single_complete_corelations = [corelations[0]]
+    correlations = [None if is_outliner(x, single_subsentence_correlations) else x for x in
+                    single_subsentence_correlations]
+    single_complete_correlations = [correlations[0]]
     single_complete_sentence = [sentences[0]]
 
     for index in range(1, len(sentences)):
@@ -16,48 +17,48 @@ def get_complete_sentences_with_corelations(sentences, single_subsentence_corela
         last_word = single_complete_sentence[-1]
         if in_same_sentence(last_word, sub, text):
             single_complete_sentence.append(sub)
-            single_complete_corelations.append(corelations[index])
+            single_complete_correlations.append(correlations[index])
         else:
             complete_sentences.append(single_complete_sentence)
-            complete_sentences_corelations.append(single_complete_corelations)
+            complete_sentences_correlations.append(single_complete_correlations)
 
             single_complete_sentence = [sub]
-            single_complete_corelations = [corelations[index]]
+            single_complete_correlations = [correlations[index]]
 
         if index == len(sentences) - 1:
             complete_sentences.append(single_complete_sentence)
-            complete_sentences_corelations.append(single_complete_corelations)
+            complete_sentences_correlations.append(single_complete_correlations)
 
-    return zip(complete_sentences, complete_sentences_corelations)
+    return zip(complete_sentences, complete_sentences_correlations)
 
 
-def get_text_corelation(text):
+def get_text_correlation(text):
     text_sentences = get_text_sentence(text)
     distance_map = get_all_sentences_distance(text_sentences)
     distance_sentence_pair = [(string, distance_map[string]) for string in text_sentences]
-    corelation = [1 - d for _, d in distance_sentence_pair]
+    correlation = [1 - d for _, d in distance_sentence_pair]
     segments_with_index = [index_word for index_word in enumerate(text_sentences)]
-    return segments_with_index, corelation, distance_sentence_pair
+    return segments_with_index, correlation, distance_sentence_pair
 
 
-def get_one_file_complex_corelation(text, title):
-    #    print("{} {}".format(text[:50], title))
+def get_one_file_complex_correlation(text, title):
+    logging.debug("{} {}".format(text[:50], title))
 
-    corelations = get_text_corelation(text)
-    sentences = [s for s, d in corelations[2]]
+    correlations = get_text_correlation(text)
+    sentences = [s for s, d in correlations[2]]
     title_distance = get_title_distance(title, sentences)
-    title_corelations = softmax([1 - d for _, d in title_distance])
-    content_corelations = softmax(corelations[1])
-    complex_corelation = get_complex_corelation(title_corelations, content_corelations)
-    # plot_corelation(complex_corelation[0])
-    return complex_corelation
+    title_correlations = softmax([1 - d for _, d in title_distance])
+    content_correlations = softmax(correlations[1])
+    complex_correlation = get_complex_corelation(title_correlations, content_correlations)
+    # plot_corelation(complex_correlation[0])
+    return complex_correlation
 
 
 def get_summary_with_nolinear(text, title, fit_length):
-    complex_corelation = get_one_file_complex_corelation(text, title)
+    complex_correlation = get_one_file_complex_correlation(text, title)
     sentences = get_text_sentence(text)
-    complete_no_linear = get_complete_sentences_with_corelations(
-        sentences, complex_corelation, get_text_content(text, escape_english=False))
+    complete_no_linear = get_complete_sentences_with_correlations(
+        sentences, complex_correlation, get_text_content(text, escape_english=False))
 
     complete_no_linear = list(complete_no_linear)
 
@@ -68,11 +69,11 @@ def get_summary_with_nolinear(text, title, fit_length):
         result = np.mean(array) * (1.05 ** (np.log(total_words_length * content_ratio + 1)))
         return result if not np.isnan(result) else -1
 
-    def get_merged_corelation(single_nolinear_corelations, sentences):
-        merged_corelation = f(single_nolinear_corelations, sentences)
-        return merged_corelation
+    def get_merged_correlation(single_nolinear_corelations, sentences):
+        merged_correlation = f(single_nolinear_corelations, sentences)
+        return merged_correlation
 
-    def get_sentence_and_merged_corelation(subsentences, corelation):
+    def get_sentence_and_merged_correlation(subsentences, corelation):
         return (" ".join(subsentences), corelation)
 
     completed_sentences_with_corelations = []
@@ -80,8 +81,8 @@ def get_summary_with_nolinear(text, title, fit_length):
     #    _25th_all_corelations = np.
 
     for s, c in complete_no_linear:
-        merged_corelation = get_merged_corelation(c, s)
-        single_completed_sentence_with_corelation = get_sentence_and_merged_corelation(s, merged_corelation)
+        merged_corelation = get_merged_correlation(c, s)
+        single_completed_sentence_with_corelation = get_sentence_and_merged_correlation(s, merged_corelation)
         completed_sentences_with_corelations.append(single_completed_sentence_with_corelation)
 
     # _25_percentile = np.percentile([c for s, c in completed_sentences_with_corelations], 25)
@@ -125,9 +126,25 @@ def readable_summary(text, title):
     return title + ": " + get_suitable_length_summary(text, title, fit_length)
 
 
+def recovery_punctuation(string: str, text: str):
+    string = string.replace('。', ' ')
+    sub_strings = string.split(' ')
+    new_string = ""
+
+    index = 0
+    for sub_str in sub_strings:
+        location = text[index:].index(sub_str)
+        punctuation = text[index:][location + len(sub_str)]
+        new_string += sub_str + punctuation
+        index += len(sub_str)
+
+    return new_string
+
+
 if __name__ == '__main__':
     target_file_path = '../experiment/error_analysis.txt'
-    title = '“汉语桥”德国大区预选赛落幕'
+    title = '端午小长假高速不免费 9个收费站可用支付宝缴费'
     summary = readable_summary(target_file_path, title)
-    print(summary)
+    # print(summary)
+    print(recovery_punctuation(summary, title + ":\n" + get_text_content(target_file_path)))
 
