@@ -49,7 +49,7 @@ def get_one_file_complex_correlation(text, title):
     title_distance = get_title_distance(title, sentences)
     title_correlations = softmax([1 - d for _, d in title_distance])
     content_correlations = softmax(correlations[1])
-    complex_correlation = get_complex_corelation(title_correlations, content_correlations)
+    complex_correlation = get_complex_correlation(title_correlations, content_correlations)
     # plot_corelation(complex_correlation[0])
     return complex_correlation
 
@@ -57,10 +57,10 @@ def get_one_file_complex_correlation(text, title):
 def get_summary_with_nolinear(text, title, fit_length):
     complex_correlation = get_one_file_complex_correlation(text, title)
     sentences = get_text_sentence(text)
-    complete_no_linear = get_complete_sentences_with_correlations(
+    complete_nolinear = get_complete_sentences_with_correlations(
         sentences, complex_correlation, get_text_content(text, escape_english=False))
 
-    complete_no_linear = list(complete_no_linear)
+    complete_nolinear = list(complete_nolinear)
 
     def f(array, sentences):
         total_words_length = len("".join(sentences))
