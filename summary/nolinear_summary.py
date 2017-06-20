@@ -50,8 +50,21 @@ def get_one_file_complex_correlation(text, title):
     title_correlations = softmax([1 - d for _, d in title_distance])
     content_correlations = softmax(correlations[1])
     complex_correlation = get_complex_correlation(title_correlations, content_correlations)
-    # plot_corelation(complex_correlation[0])
+    # plot_correlation(complex_correlation[0])
     return complex_correlation
+
+
+def get_merged_correlation(single_nolinear_correlations, sentences, f):
+    merged_correlation = f(single_nolinear_correlations, sentences)
+    return merged_correlation
+
+
+def f(array, sentences):
+    total_words_length = len("".join(sentences))
+    array = list(filter(lambda x: x is not None, array))
+    content_ratio = len(array) / len(sentences)
+    result = np.mean(array) * ((np.log(total_words_length * content_ratio + 1)))
+    return result if not np.isnan(result) else -1
 
 
 def get_summary_with_nolinear(text, title, fit_length):
@@ -62,42 +75,31 @@ def get_summary_with_nolinear(text, title, fit_length):
 
     complete_nolinear = list(complete_nolinear)
 
-    def f(array, sentences):
-        total_words_length = len("".join(sentences))
-        array = list(filter(lambda x: x is not None, array))
-        content_ratio = len(array) / len(sentences)
-        result = np.mean(array) * (1.05 ** (np.log(total_words_length * content_ratio + 1)))
-        return result if not np.isnan(result) else -1
+    def get_sentence_and_merged_correlation(subsentences, correlation):
+        return (" ".join(subsentences), correlation)
 
-    def get_merged_correlation(single_nolinear_corelations, sentences):
-        merged_correlation = f(single_nolinear_corelations, sentences)
-        return merged_correlation
+    completed_sentences_with_correlations = []
+    all_correlations = [c for s, c in complete_nolinear]
+    #    _25th_all_correlations = np.
 
-    def get_sentence_and_merged_correlation(subsentences, corelation):
-        return (" ".join(subsentences), corelation)
+    for s, c in complete_nolinear:
+        merged_correlation = get_merged_correlation(c, s, f)
+        single_completed_sentence_with_correlation = get_sentence_and_merged_correlation(s, merged_correlation)
+        completed_sentences_with_correlations.append(single_completed_sentence_with_correlation)
 
-    completed_sentences_with_corelations = []
-    all_corelations = [c for s, c in complete_no_linear]
-    #    _25th_all_corelations = np.
+    # _25_percentile = np.percentile([c for s, c in completed_sentences_with_correlations], 25)
+    #    _60_percentile = np.percentile([c for s, c in completed_sentences_with_correlations], 60)
+    correlations = [c for s, c in completed_sentences_with_correlations]
+    correlations = [x if not np.isnan(x) else -1 for x in correlations]
+    sentences = [s for s, c in completed_sentences_with_correlations]
 
-    for s, c in complete_no_linear:
-        merged_corelation = get_merged_correlation(c, s)
-        single_completed_sentence_with_corelation = get_sentence_and_merged_correlation(s, merged_corelation)
-        completed_sentences_with_corelations.append(single_completed_sentence_with_corelation)
-
-    # _25_percentile = np.percentile([c for s, c in completed_sentences_with_corelations], 25)
-    #    _60_percentile = np.percentile([c for s, c in completed_sentences_with_corelations], 60)
-    corelations = [c for s, c in completed_sentences_with_corelations]
-    corelations = [x if not np.isnan(x) else -1 for x in corelations]
-    sentences = [s for s, c in completed_sentences_with_corelations]
-
-    top_corelations = top_n(corelations, sentences, fit_length)
+    top_correlations = top_n(correlations, sentences, fit_length)
 
     total_sentence = []
     total_length = 0
     min_single_length = 3
-    for string, corelations in zip(sentences, corelations):
-        if corelations in top_corelations:
+    for string, correlations in zip(sentences, correlations):
+        if correlations in top_correlations:
             if len(string) >= min_single_length:
                 total_length += len(string)
                 total_sentence.append(string)
@@ -105,15 +107,15 @@ def get_summary_with_nolinear(text, title, fit_length):
     return "。".join(total_sentence)
 
 
-def top_n(corelations, sentences, fit_length):
-    sorted_array_with_sentences = sorted(zip(corelations, sentences), key=lambda x: x[0], reverse=True)
-    max_corelations = []
+def top_n(correlations, sentences, fit_length):
+    sorted_array_with_sentences = sorted(zip(correlations, sentences), key=lambda x: x[0], reverse=True)
+    max_correlations = []
     length = 0
     for c, s in sorted_array_with_sentences:
         length += len(s)
-        max_corelations.append(c)
+        max_correlations.append(c)
         if length >= fit_length: break
-    return max_corelations
+    return max_correlations
 
 
 def get_suitable_length_summary(text, title, fit_length):
@@ -143,8 +145,8 @@ def recovery_punctuation(string: str, text: str):
 
 if __name__ == '__main__':
     target_file_path = '../experiment/error_analysis.txt'
-    title = '端午小长假高速不免费 9个收费站可用支付宝缴费'
+    title = '腾讯工地着火新浪保安伸援手'
     summary = readable_summary(target_file_path, title)
     # print(summary)
-    print(recovery_punctuation(summary, title + ":\n" + get_text_content(target_file_path)))
+    print(recovery_punctuation(summary, title + ":\n" + get_text_content(target_file_path, escape_english=False)))
 

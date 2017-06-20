@@ -88,6 +88,19 @@ def delete_hidden_seperator(text):
     return text
 
 
+def delete_bracket(string, bracket='（', end_pair='）'):
+    '''
+    delete the bracket content in a string. 
+    e.g 北京办公楼外北侧的雨水收集池（位于建筑物20米开外）起火，原因是工人操作不当，引燃了塑料材料。目前火已扑灭，现场无人员伤亡，感谢大家的关心。”
+        change to 北京办公楼外北侧的雨水收集池起火，原因是工人操作不当，引燃了塑料材料。目前火已扑灭，现场无人员伤亡，感谢大家的关心。”
+    :param string: 
+    :return: 
+    '''
+    brackets = "[\(\[\（\【].*?[\)\）\]\】]"
+    string = re.sub(brackets, "", string)
+    return string
+
+
 def get_text_sentence(text, escape_english=True):
     text = get_text_content(text, escape_english)
     text_sentences = line_to_sentences(text)
@@ -99,6 +112,8 @@ def get_text_sentence(text, escape_english=True):
 def get_text_content(text, escape_english=True):
     if os.path.isfile(text):
         text = "".join(line for line in open(text).readlines())
+
+    text = delete_bracket(text)
 
     if escape_english:
         text = change_text_english(text)

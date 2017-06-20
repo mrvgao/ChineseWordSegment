@@ -1,5 +1,9 @@
 from summary.text_summary import  *
 import numpy as np
+import matplotlib
+matplotlib.use('tkAgg')
+import matplotlib.pyplot as plt
+import re
 
 
 def get_fit_length(original_length):
@@ -17,21 +21,20 @@ def get_fit_length(original_length):
 def get_title_distance(title, sentences):
     return get_text_sentences_distances(title, sentences)
 
-
 def softmax(array):
     array = np.array(array)
     array -= np.max(array, axis=0)
     return np.exp(array) / sum(np.exp(array))
 
 
-def get_complex_corelation(title_corelations, content_corelations):
-    def f(title_corelation, content_corelation):
+def get_complex_correlation(title_correlations, content_correlations):
+    def f(title_correlation, content_correlation):
         p = 0.5
-        return p * title_corelation + (1 - p) * content_corelation
-    corelations = []
-    for t_c, c_c in zip(title_corelations, content_corelations):
-        corelations.append(f(t_c, c_c))
-    return corelations
+        return p * title_correlation + (1 - p) * content_correlation
+    correlations = []
+    for t_c, c_c in zip(title_correlations, content_correlations):
+        correlations.append(f(t_c, c_c))
+    return correlations
 
 
 def is_outliner(x, array):
@@ -44,9 +47,39 @@ def is_outliner(x, array):
         return False
 
 
+def clean_outliner(Xs):
+    Xs = np.array(Xs)
+    Xs = list(filter(lambda x: not is_outliner(x, Xs), Xs))
+    return Xs
+
+
 def in_same_sentence(subsentence1, subsentence2, text):
     begin_index = text.index(subsentence1)
     if find_complete_sentence(subsentence1, text[begin_index:]) == find_complete_sentence(subsentence2, text[begin_index:]):
         return True
     else:
         return False
+
+
+def plot_correlation(correlation, sub_plot=None):
+    mean = np.mean(correlation)
+    _1st_percentile = np.percentile(correlation, 25)
+    _3st_percentile = np.percentile(correlation, 75)
+
+    if sub_plot:
+        plt.subplot(*sub_plot)
+
+    print('correlation length is: {}'.format(len(correlation)))
+    plt.plot(range(len(correlation)), correlation, c=(0, 0, 0.2))
+    plt.fill_between(range(len(correlation)), correlation)
+    plt.plot([mean] * len(correlation), 'r--')
+    plt.plot([_1st_percentile] * len(correlation), 'g+')
+    plt.plot([_3st_percentile] * len(correlation), 'b*')
+
+
+def accumulate(x):
+    x = np.array(x)
+    acc = [np.sum(x[:(index+1)]) for index in range(len(x))]
+    return acc
+
+
