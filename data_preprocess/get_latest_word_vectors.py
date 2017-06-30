@@ -12,6 +12,7 @@ import os
 
 import time
 
+
 def clear_file(file_list, dir=None):
     for file in file_list:
         if dir:
@@ -24,7 +25,7 @@ def clear_file(file_list, dir=None):
 
 
 def get_backup_filename(directory, begin, end):
-    file_name = "{}-{}.pickle".format(begin, end) if begin != end else begin + 'pickle'
+    file_name = "{}-{}.pickle".format(begin, end) if begin != end else begin + '.pickle'
     return os.path.join(directory, file_name)
 
 
@@ -36,19 +37,21 @@ def get_vectors_from_scratch(target_news, force_load_news=False, force_reload_oc
 
     word_vector_dir = 'word_vectors'
     cut_word_dir = 'cutted_words'
-    clearify_content_dir = 'clearify_content'
+    clarify_content_dir = 'clarify_content'
 
-    vectors = get_backup_filename(word_vector_dir, target_news[0], target_news[-1])
-    cut_words = get_backup_filename(cut_word_dir, target_news[0], target_news[-1])
-    clearify_content = get_backup_filename(clearify_content_dir, target_news[0], target_news[-1])
+    cut_words = cut_word_dir + '/' + target_news[0]
+    vectors = word_vector_dir + '/' + target_news[0].split('.')[0]
+    # vectors = get_backup_filename(word_vector_dir, target_news[0], target_news[-1])
+    # cut_words = get_backup_filename(cut_word_dir, target_news[0], target_news[-1])
+    # clarify_content = get_backup_filename(clarify_content_dir, target_news[0], target_news[-1])
 
-    news_file = [string+file_type for string in target_news]
-    news_file = [os.path.join(content_dir, f) for f in news_file]
+    # news_file = [string+file_type for string in target_news]
+    # news_file = [os.path.join(content_dir, f) for f in news_file]
 
-    if force_load_news:
-        clear_file([vectors, cut_words, clearify_content])
-        get_cms_news.get_multiply_files_content(news_file, clearify_content, original=original)
-        get_mini_cut_words.cut_all_words(content_file=clearify_content, cut_crops_save_file=cut_words)
+    # if force_load_news:
+    #     clear_file([vectors, cut_words, clarify_content])
+    #     get_cms_news.get_multiply_files_content(news_file, clarify_content, original=original)
+    #     get_mini_cut_words.cut_all_words(content_file=clarify_content, cut_crops_save_file=cut_words)
 
     get_mini_vectors.get_words_vector(cut_crops=cut_words, backup_pickle=vectors, force_reload=force_reload_occorrence)
 
@@ -57,10 +60,9 @@ if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
     config = {
         'force_load_news': False,
-        'force_reload_occorrence': False,
+        'force_reload_occorrence': True,
         # 'target_news' : ['20170522', '20170523', '20170524']
-        'target_news': ['sqlResult_1262716_0524'],
-        'original': 'fm'
+        'target_news': ['wiki_and_news.txt'],
     }
 
     begin = time.time()

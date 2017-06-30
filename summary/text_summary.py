@@ -1,5 +1,4 @@
 from sentenceEmbedding import get_sentence_vector
-from scipy import spatial
 import re
 import functools
 import random
@@ -7,32 +6,15 @@ import pandas as pd
 from data_preprocess.get_cms_news import clarify
 import os
 import logging
-
-
-def cosine_distance(v1, v2):
-    try:
-        distance = spatial.distance.cosine(v1, v2)
-    except ValueError:
-        distance = float('inf')
-
-    return distance
+from sentence_manager.utils import line_to_sentences
+from sentence_manager.utils import delete_bracket
+from utlis.metrics import cosine
 
 
 def sentence_is_same(string1, string2):
     v1 = get_sentence_vector(string1)
     v2 = get_sentence_vector(string2)
-    return cosine_distance(v1, v2) < 1e-1
-
-
-def line_to_sentences(line):
-    white_space_regex = re.compile(r'[' '\n\r\t\xa0@]')
-    content = white_space_regex.sub("\n", line)
-    dont_need_mark = re.compile(r"[\"…… /]")
-    content = dont_need_mark.sub(" ", content)
-    splited_mark = re.compile(r"""[,，。；？！?？|;!！<> · () （）：【】)（）]""")
-    content = splited_mark.sub(" ", content)
-    content = re.sub("\s+", ' ', content).strip()
-    return content.split()
+    return cosine(v1, v2) < 1e-1
 
 
 def is_space(char):
@@ -88,19 +70,6 @@ def delete_hidden_seperator(text):
     return text
 
 
-def delete_bracket(string, bracket='（', end_pair='）'):
-    '''
-    delete the bracket content in a string. 
-    e.g 北京办公楼外北侧的雨水收集池（位于建筑物20米开外）起火，原因是工人操作不当，引燃了塑料材料。目前火已扑灭，现场无人员伤亡，感谢大家的关心。”
-        change to 北京办公楼外北侧的雨水收集池起火，原因是工人操作不当，引燃了塑料材料。目前火已扑灭，现场无人员伤亡，感谢大家的关心。”
-    :param string: 
-    :return: 
-    '''
-    brackets = "[\(\[\（\【].*?[\)\）\]\】]"
-    string = re.sub(brackets, "", string)
-    return string
-
-
 def get_text_sentence(text, escape_english=True):
     text = get_text_content(text, escape_english)
     text_sentences = line_to_sentences(text)
@@ -123,7 +92,7 @@ def get_text_content(text, escape_english=True):
 
 
 def get_two_sentence_distance(text1, text2):
-    return cosine_distance(get_text_vector(text1), get_text_vector(text2))
+    return cosine(get_text_vector(text1), get_text_vector(text2))
 
 
 def get_text_vector(text):
@@ -133,7 +102,7 @@ def get_text_vector(text):
 def get_text_sentences_distances(text, sentences):
     text_vector = get_text_vector(text)
     sentences_vectors = [get_sentence_vector(string) for string in sentences]
-    text_sentences_distances = [cosine_distance(vec, text_vector) for vec in sentences_vectors]
+    text_sentences_distances = [cosine(vec, text_vector) for vec in sentences_vectors]
     return list(zip(sentences, text_sentences_distances))
 
 

@@ -1,9 +1,9 @@
-from summary.text_summary import  *
+from summary.text_summary import get_text_sentences_distances
+from summary.text_summary import find_complete_sentence
 import numpy as np
 import matplotlib
 matplotlib.use('tkAgg')
 import matplotlib.pyplot as plt
-import re
 
 
 def get_fit_length(original_length):
@@ -20,6 +20,7 @@ def get_fit_length(original_length):
 
 def get_title_distance(title, sentences):
     return get_text_sentences_distances(title, sentences)
+
 
 def softmax(array):
     array = np.array(array)
@@ -81,5 +82,37 @@ def accumulate(x):
     x = np.array(x)
     acc = [np.sum(x[:(index+1)]) for index in range(len(x))]
     return acc
+
+
+def get_neighbor(values, index, neighbor):
+    values = [v if not np.isnan(v) else 2 for v in values]
+    candidates = [values[index]]
+
+    left = index - 1
+    left_neighbor = 1
+    right = index + 1
+    right_neighbor = 1
+
+    while left_neighbor <= neighbor and left >= 0:
+        candidates.append(values[left])
+        left -= 1
+        left_neighbor += 1
+
+    while right_neighbor <= neighbor and right <= len(values) - 1:
+        candidates.append(values[right])
+        right += 1
+        right_neighbor += 1
+
+    return np.mean(candidates)
+
+
+def k_nn(values, neighbor=1):
+    new_values = []
+    for index, v in enumerate(values):
+        knn_value = get_neighbor(values, index, neighbor)
+        new_values.append(knn_value)
+
+    return new_values
+
 
 

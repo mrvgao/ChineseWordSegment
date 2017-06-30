@@ -73,11 +73,14 @@ class GloVeModel():
         word_counts = Counter()
         cooccurrence_counts = defaultdict(float)
         for index, region in enumerate(corpus):
-            logging.info("{}/{}, {}%..".format(index, len(corpus), index*100/len(corpus)))
+            logging.info("{}".format(index))
+
+            if random.random() > self.sample:
+                continue
+
             word_counts.update(region)
+
             for l_context, word, r_context in _context_windows(region, left_size, right_size):
-                if random.random() > self.sample:
-                    continue
 
                 for i, context_word in enumerate(l_context[::-1]):
                     # add (1 / distance from focal word) for this pair
@@ -85,6 +88,7 @@ class GloVeModel():
                     cooccurrence_counts[(word, context_word)] += 1 / (i + 1)
                 for i, context_word in enumerate(r_context):
                     cooccurrence_counts[(word, context_word)] += 1 / (i + 1)
+
         if len(cooccurrence_counts) == 0:
             raise ValueError("No coccurrences in corpus. Did you try to reuse a generator?")
         self.__words = [word for word, count in word_counts.most_common(vocab_size)
@@ -105,7 +109,6 @@ class GloVeModel():
                 'cooccurrence_matrix': self.__cooccurrence_matrix
             }
             pickle.dump(dump_data, f, pickle.HIGHEST_PROTOCOL)
-
 
     def __build_graph(self):
         self.__graph = tf.Graph()
@@ -158,15 +161,18 @@ class GloVeModel():
 
             single_losses = tf.multiply(weighting_factor, distance_expr)
 
-            if self.regularization > 0 and random.random() < 0.3 :
-                reg = tf.reduce_sum(tf.nn.l2_loss(focal_embeddings))
-                self.need_write = False
-                regularization_loss = 1/2 * self.regularization * reg
-            else:
-                regularization_loss = 0
-                self.need_write = True
+            if self.regularization > 0:
+                # regularizer = tf.contrib.layers.l1_regularizer(scale=self.regularization)
+                # regularization_penalty = tf.contrib.layers.apply_regularization(regularizer, focal_embedding)
+                # reg = tf.reduce_sum(tf.losses.l1_loss(focal_embeddings))
+                # self.need_write = False
+                # regularization_loss = 1/2 * self.regularization * reg
+                regularization_loss = self.regularization * tf.reduce_sum(tf.abs(focal_embedding))
+            # else:
+            #     regularization_loss = 0
+            self.need_write = True
 
-            self.__total_loss = tf.reduce_sum(single_losses) + self.regularization * regularization_loss
+            self.__total_loss = tf.reduce_sum(single_losses) + regularization_loss
             tf.summary.scalar("GloVe_loss", self.__total_loss)
             tf.summary.histogram('focal_embedding', focal_embeddings)
 
