@@ -17,52 +17,6 @@ def sentence_is_same(string1, string2):
     return cosine(v1, v2) < 1e-1
 
 
-def is_space(char):
-    if char == ' ':
-        return True
-    else:
-        return False
-
-
-def forward_is_english(index, text):
-    while index < len(text):
-        if is_space(text[index]):
-            index += 1
-            continue
-        elif text[index].isalpha():
-            return True
-        else:
-            return False
-
-
-def change_text_english(text):
-    if len(text) <= 1:
-        return text
-
-    new_text = text[0]
-    placeholder = u'\U0001f604'
-    for i in range(1, len(text)-1):
-        current_char = text[i]
-        if (is_space(current_char) and forward_is_english(i, text)) or (is_space(current_char) and text[i-1].isalpha()):
-            new_text += placeholder
-        else:
-            new_text += current_char
-
-    new_text += text[-1]
-
-    return new_text
-
-
-def recovery_from_english(sentences):
-    new_sentences = []
-    placeholder = u'\U0001f604'
-    for s in sentences:
-        s = s.replace(placeholder, ' ')
-        new_sentences.append(s)
-
-    return new_sentences
-
-
 def delete_hidden_seperator(text):
     white_space_regex = re.compile(r"[\n\r\t\xa0@]")
     text = white_space_regex.sub('\n', text)
@@ -70,25 +24,25 @@ def delete_hidden_seperator(text):
     return text
 
 
-def get_text_sentence(text, escape_english=True):
-    text = get_text_content(text, escape_english)
-    text_sentences = line_to_sentences(text)
-    if escape_english:
-        text_sentences = recovery_from_english(text_sentences)
-    return text_sentences
-
-
-def get_text_content(text, escape_english=True):
-    if os.path.isfile(text):
-        text = "".join(line for line in open(text).readlines())
-
-    text = delete_bracket(text)
-
-    if escape_english:
-        text = change_text_english(text)
-
-    text = delete_hidden_seperator(text)
-    return text
+# def get_text_sentence(text, escape_english=True):
+#     text = get_text_content(text, escape_english)
+#     text_sentences = line_to_sentences(text)
+#     if escape_english:
+#         text_sentences = recovery_from_english(text_sentences)
+#     return text_sentences
+#
+#
+# def get_text_content(text, escape_english=True):
+#     if os.path.isfile(text):
+#         text = "".join(line for line in open(text).readlines())
+#
+#     text = delete_bracket(text)
+#
+#     if escape_english:
+#         text = change_text_english(text)
+#
+#     text = delete_hidden_seperator(text)
+#     return text
 
 
 def get_two_sentence_distance(text1, text2):
@@ -191,27 +145,27 @@ def find_complete_sentence(sub_sentence: str, text: str) -> str:
     return text[begin: end]
 
 
-def get_complete_summary(file=None, type="file"):
-    if type == 'file':
-        text_sentences = get_text_sentence(file)
-        text = "".join([line for line in open(file)])
-    elif type == 'text':
-        text_sentences = clarify(file).split()
-        text = file
-
-    summary_length = 60
-    summary = get_summary(text_sentences, summary_length=summary_length)
-    completed_summary = {}
-    for index, sentence in enumerate(text_sentences):
-        if sentence in summary:
-            complete_sentence = find_complete_sentence(sentence, text)
-            completed_summary[complete_sentence] = index
-
-    completed_summary = sorted(completed_summary.items(), key=lambda x: x[1])
-    completed_summary = "".join([s for s, _ in completed_summary])
-
-    return completed_summary
-
+# def get_complete_summary(file=None, type="file"):
+#     if type == 'file':
+#         text_sentences = get_text_sentence(file)
+#         text = "".join([line for line in open(file)])
+#     elif type == 'text':
+#         text_sentences = clarify(file).split()
+#         text = file
+#
+#     summary_length = 60
+#     summary = get_summary(text_sentences, summary_length=summary_length)
+#     completed_summary = {}
+#     for index, sentence in enumerate(text_sentences):
+#         if sentence in summary:
+#             complete_sentence = find_complete_sentence(sentence, text)
+#             completed_summary[complete_sentence] = index
+#
+#     completed_summary = sorted(completed_summary.items(), key=lambda x: x[1])
+#     completed_summary = "".join([s for s, _ in completed_summary])
+#
+#     return completed_summary
+#
 
 def show_summary_in_text(text_sentences, summary):
     for line in text_sentences:
@@ -222,29 +176,29 @@ def show_summary_in_text(text_sentences, summary):
             print('--{}--'.format(line))
 
 
-def write_fm_news(f, contents, test_number):
-    number = 0
-    for row in contents:
-        if random.random() < 0.7: continue
-        if number > test_number: break
+# def write_fm_news(f, contents, test_number):
+#     number = 0
+#     for row in contents:
+#         if random.random() < 0.7: continue
+#         if number > test_number: break
+#
+#         content = row[1][4]
+#         if len(content) < 300: continue
+#
+#         summary = get_complete_summary(content, type='text')
+#         f.write('--------------------------------------\n')
+#         f.write("{}\n Content: \n {}\n Description: {}\n".format(number, content, summary))
+#         print(number)
+#         number += 1
 
-        content = row[1][4]
-        if len(content) < 300: continue
 
-        summary = get_complete_summary(content, type='text')
-        f.write('--------------------------------------\n')
-        f.write("{}\n Content: \n {}\n Description: {}\n".format(number, content, summary))
-        print(number)
-        number += 1
-
-
-def get_test_result(content_csv):
-    test_file_name = 'summary_test_result_0605.txt'
-    contents = pd.read_csv(content_csv)
-    contents = contents.iterrows()
-    total_test_length = 25
-    with open(test_file_name, 'w') as f:
-        write_fm_news(f, contents, total_test_length)
+# def get_test_result(content_csv):
+#     test_file_name = 'summary_test_result_0605.txt'
+#     contents = pd.read_csv(content_csv)
+#     contents = contents.iterrows()
+#     total_test_length = 25
+#     with open(test_file_name, 'w') as f:
+#         write_fm_news(f, contents, total_test_length)
 
 
 def get_pure_content_from_csv(content_csv):

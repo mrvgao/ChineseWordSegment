@@ -29,45 +29,28 @@ def get_backup_filename(directory, begin, end):
     return os.path.join(directory, file_name)
 
 
-def get_vectors_from_scratch(target_news, force_load_news=False, force_reload_occorrence=False, file_type='.csv', original='cms'):
-    if file_type == '.csv':
-        content_dir = "updated_news"
-    else:
-        content_dir = ""
-
-    word_vector_dir = 'word_vectors'
-    cut_word_dir = 'cutted_words'
-    clarify_content_dir = 'clarify_content'
-
-    cut_words = cut_word_dir + '/' + target_news[0]
-    vectors = word_vector_dir + '/' + target_news[0].split('.')[0]
-    # vectors = get_backup_filename(word_vector_dir, target_news[0], target_news[-1])
-    # cut_words = get_backup_filename(cut_word_dir, target_news[0], target_news[-1])
-    # clarify_content = get_backup_filename(clarify_content_dir, target_news[0], target_news[-1])
-
-    # news_file = [string+file_type for string in target_news]
-    # news_file = [os.path.join(content_dir, f) for f in news_file]
-
-    # if force_load_news:
-    #     clear_file([vectors, cut_words, clarify_content])
-    #     get_cms_news.get_multiply_files_content(news_file, clarify_content, original=original)
-    #     get_mini_cut_words.cut_all_words(content_file=clarify_content, cut_crops_save_file=cut_words)
-
-    get_mini_vectors.get_words_vector(cut_crops=cut_words, backup_pickle=vectors, force_reload=force_reload_occorrence)
-
-
 if __name__ == '__main__':
-    # logging.basicConfig(level=logging.DEBUG)
-    config = {
-        'force_load_news': False,
-        'force_reload_occorrence': True,
-        # 'target_news' : ['20170522', '20170523', '20170524']
-        'target_news': ['wiki_and_news.txt'],
+    logging.basicConfig(level=logging.DEBUG)
+
+    ratio = 1
+    train_vector_config = {
+        'embedding_size': 150,  # the last is 100
+        'context_size': 5,
+        'learning_rate': 0.0015,
+        'sample': 0.20 * 5 * ratio,
+        'force_reload': True,
+        'regularization': 0.001,
+        'batch_size': int(10000 * 5 * ratio),
+        'max_vocab_size': 20000,
+        'epoch': 50,
+        'test_mode': False,
+        'words_frequency': 'word_frequence/occurence_maxtrix_20000.pickle',
+        'config_file': 'config/config.conf',
     }
 
-    begin = time.time()
-
-    get_vectors_from_scratch(**config)
-
-    end = time.time()
-    print('used time: {} s'.format(end-begin))
+    get_mini_vectors.get_words_vector(
+        vector_config=train_vector_config,
+        cut_crops='cutted_words/clear_wiki_and_news.txt',
+        words_count='word_frequence/sorted_wiki_and_news_wc.txt',
+        backup_pickle='word_vectors/wiki_and_news_glove_0.2loss.pickle',
+    )

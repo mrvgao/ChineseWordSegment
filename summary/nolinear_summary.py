@@ -107,17 +107,6 @@ def get_summary_with_nolinear(text, title, fit_length):
     return "。".join(total_sentence)
 
 
-def top_n(correlations, sentences, fit_length):
-    sorted_array_with_sentences = sorted(zip(correlations, sentences), key=lambda x: x[0], reverse=True)
-    max_correlations = []
-    length = 0
-    for c, s in sorted_array_with_sentences:
-        length += len(s)
-        max_correlations.append(c)
-        if length >= fit_length: break
-    return max_correlations
-
-
 def get_suitable_length_summary(text, title, fit_length):
     summary = get_summary_with_nolinear(text, title, fit_length)
     return summary
@@ -127,20 +116,6 @@ def readable_summary(text, title):
     fit_length = get_fit_length(len(get_text_content(text)))
     return title + ": " + get_suitable_length_summary(text, title, fit_length)
 
-
-def recovery_punctuation(string: str, text: str):
-    string = string.replace('。', ' ')
-    sub_strings = string.split(' ')
-    new_string = ""
-
-    index = 0
-    for sub_str in sub_strings:
-        location = text[index:].index(sub_str)
-        punctuation = text[index:][location + len(sub_str)]
-        new_string += sub_str + punctuation
-        index += len(sub_str)
-
-    return new_string
 
 
 if __name__ == '__main__':

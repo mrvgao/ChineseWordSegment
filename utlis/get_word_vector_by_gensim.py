@@ -12,6 +12,8 @@ wiki_model = Word2Vec.load('/Users/kouminquan/AI-LAB/Chinese-New-Phrase-Detectio
 
 cut = pseg.cut
 
+wiki_path = ''
+
 
 def get_similarity_increase_ratio(word1, word2):
     wiki_similarity = get_similarity(word1, word2, model='wiki')
