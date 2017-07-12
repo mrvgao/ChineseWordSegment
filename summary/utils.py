@@ -1,4 +1,3 @@
-from summary.text_summary import get_text_sentences_distances
 from summary.text_summary import find_complete_sentence
 from sentence_manager.sentence_embedding import get_sentence_embedding
 import numpy as np
@@ -15,10 +14,6 @@ def get_fit_length(original_length):
     for cond in length_map:
         if cond(original_length):
             return length_map[cond]
-
-
-def get_title_distance(title, sentences):
-    return get_text_sentences_distances(title, sentences)
 
 
 def softmax(array):

@@ -86,10 +86,10 @@ def get_clean_top_sentences(text, title=None):
     top_sentences = get_sentences_by_distances(complex_distances, sentences, top_correlations)
     top_sentences = [add_end_quote(s) for s in top_sentences]
     clean_top_sentence = list(map(lambda s: recursive_clean_sentence_begin(s, text), top_sentences))
-    summary = "。".join(clean_top_sentence) + '。'
+    assumed_summary = "。".join(clean_top_sentence) + '。'
     if title:
-        summary = title + ": " + summary
-    return summary
+        assumed_summary = title + ": " + assumed_summary
+    return assumed_summary
 
 
 def test_text():
@@ -99,7 +99,7 @@ def test_text():
 新华社记者鞠焕宗摄
 “晚点了49分钟！”6月27日下午，原定16点50分开抵上海虹桥的中国标准动车组G123次“复兴号”，直到17点39分才到达终点。接到读者“报料”，封面新闻第一时间联系了中国铁路客户服务中心，12306接线员向记者证实了G123次晚点一事，但对于原因，表示不知情。
 与此同时，封面新闻发现，不少网友也注意到G123次晚点一事，甚至有网友担心“设备故障”，但也有不少网友力挺“复兴号”。一位博主更是坚信晚点跟“标动”本身没有关系，他还呼吁铁路部门发布晚点原因说明，“省的别有用心的人黑‘ 标动’”。
-那么“复兴号”为何在开行次日晚点呢？是否真是设备故障呢？因为G123次始发站为北京南站，记者与北京铁路局取得了联系。因晚点发生地并不在北京，该局人员表示，具体原因建议问问上海铁路局。
+那么“r兴号”为何在开行次日晚点呢？是否真是设备故障呢？因为G123次始发站为北京南站，记者与北京铁路局取得了联系。因晚点发生地并不在北京，该局人员表示，具体原因建议问问上海铁路局。
 上海铁路局会给出什么答案呢？该局证实，G123次确实发生了晚点，但晚点的远非“标动”。什么意思？看看补充说明——截至27日18时20分，该局数据显示仅京沪高铁，当日有14趟列车晚点。其中晚点时间最长的是北京南站11点10分发往上海虹桥的G125次，约晚了59分钟。此外，山东烟台发往上海的G459次和北京南站发往上海的G411次，均晚点54分钟。晚点时间最短的G137次，从北京去上海也“迟到”了23分钟。
 所以，并非G123一趟车的事。
 上海铁路局提供的数据还显示，当日京沪高铁计划开行373列动车组。虽然，晚点14趟并非“大范围”，但包括“复兴号”在内的晚点，究竟是何原因呢？遗憾的是，在这里也没能得到答案，但记者得到了一条重要线索——可能跟G329次有关。

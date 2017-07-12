@@ -1,4 +1,3 @@
-from sentenceEmbedding import get_sentence_vector
 import re
 import functools
 import random
@@ -9,12 +8,6 @@ import logging
 from sentence_manager.utils import line_to_sentences
 from sentence_manager.utils import delete_bracket
 from utlis.metrics import cosine
-
-
-def sentence_is_same(string1, string2):
-    v1 = get_sentence_vector(string1)
-    v2 = get_sentence_vector(string2)
-    return cosine(v1, v2) < 1e-1
 
 
 def delete_hidden_seperator(text):
@@ -43,57 +36,6 @@ def delete_hidden_seperator(text):
 #
 #     text = delete_hidden_seperator(text)
 #     return text
-
-
-def get_two_sentence_distance(text1, text2):
-    return cosine(get_text_vector(text1), get_text_vector(text2))
-
-
-def get_text_vector(text):
-    return get_sentence_vector(text)
-
-
-def get_text_sentences_distances(text, sentences):
-    text_vector = get_text_vector(text)
-    sentences_vectors = [get_sentence_vector(string) for string in sentences]
-    text_sentences_distances = [cosine(vec, text_vector) for vec in sentences_vectors]
-    return list(zip(sentences, text_sentences_distances))
-
-
-def get_all_sentences_distance(text_sentences):
-    sentence_distances = get_text_sentences_distances(" ".join(text_sentences), text_sentences)
-    sentence_distance_dic = {sentence: distance for sentence, distance in sentence_distances}
-    return sentence_distance_dic
-
-
-def clarify_duplicate_sentences(sentences_sorted_by_importance):
-    deleted_index = []
-    for index in range(len(sentences_sorted_by_importance) - 1):
-        current_string = sentences_sorted_by_importance[index][0]
-        next_string = sentences_sorted_by_importance[index + 1][0]
-        if sentence_is_same(current_string, next_string):
-            deleted_index.append(index + 1)
-
-    for need_del in deleted_index:
-        sentences_sorted_by_importance[need_del] = None
-
-    return [s for s in sentences_sorted_by_importance if s is not None]
-
-
-def get_important_sentences(sentences_distances: dict, keep_ratio=0.9):
-    sorted_by_importance = sorted(sentences_distances.items(), key=lambda x: x[1])
-    sorted_by_importance = clarify_duplicate_sentences(sorted_by_importance)
-    important_sentences = [s for s, d in sorted_by_importance]
-    return important_sentences[:int(len(sorted_by_importance)*keep_ratio)]
-
-
-def get_summary(text_sentences,  summary_length, keep_ratio=0.9):
-    sentences_importance = get_all_sentences_distance(text_sentences)
-    keep_sentences = get_important_sentences(sentences_importance, keep_ratio=keep_ratio)
-    total_sentence_number = 5
-    if len(keep_sentences) < total_sentence_number: return keep_sentences
-    return get_summary(keep_sentences, summary_length)
-
 
 def forward_alpha(text : str, index, direction='right'):
     if direction == 'right': index += 1
