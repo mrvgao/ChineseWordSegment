@@ -26,3 +26,12 @@ pai_train.tar.gz
 */_vec_log/
 */*_vec_log/
 .idea/.name
+.DS_Store
+data_preprocess/.DS_Store utlis/.DS_Store
+data_preprocess/utils/test.db
+data_preprocess/cooccurrence.db
+data_preprocess/word_vectors/hudong.vector data_preprocess/word_vectors/wiki_zh.vec
+data_preprocess/word_vectors/wiki_zh.vec
+data_preprocess/word_vectors/hudong.vector
+utlis/data
+data_preprocess/cooccurrence.db-journal
