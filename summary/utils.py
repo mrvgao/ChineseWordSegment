@@ -2,6 +2,8 @@ from summary.text_summary import find_complete_sentence
 from sentence_manager.sentence_embedding import get_sentence_embedding
 import numpy as np
 from utlis.metrics import cosine
+import os
+import logging
 
 
 def get_fit_length(original_length):
@@ -28,7 +30,10 @@ def get_complex_correlation(title_correlations, content_correlations):
     content_correlations = [c if c != float('inf') else 2 for c in content_correlations]
     correlations = list(map(lambda t_c: t_c[0] * p + t_c[1] * (1-p),
                             zip(title_correlations, content_correlations)))
-    return [c/np.sum(correlations) for c in correlations]
+
+    # return [c/np.sum(correlations) for c in correlations]
+
+    return softmax(correlations)
 
 
 def is_outliner(x, array):
@@ -162,4 +167,34 @@ def top_n(correlations, sentences, fit_length, title=None):
 def get_sentences_by_distances(distances, sentences, top_n_distances):
     total_sentence = [s for s, d in zip(sentences, distances) if d in top_n_distances]
     return total_sentence
+
+
+def test_if_one_file_fit_summary(text, complex_correlation):
+    mini_length = 200
+    if not os.path.isfile(text) and len(text) < mini_length:
+        return 1e-5
+    else:
+        return have_main_point(complex_correlation)
+
+
+def have_main_point(complex_correlation):
+    if len(complex_correlation) < 10:
+        return 1e-5
+    else:
+        complex_correlation = clean_outliner(complex_correlation)
+        k = (1.0 - 0) / (len(complex_correlation) - 0)
+        ys = k * np.arange(0, len(complex_correlation))
+        acc = accumulate(complex_correlation)
+        l2_loss = l_2_loss(acc, ys)
+        # threshold = 5.0e-4
+        logging.info(l2_loss)
+        return l2_loss
+
+
+def l_2_loss(y_hats, ys):
+    def f(x):
+        max_length = 1000
+        if x > max_length: return max_length
+        else: return x
+    return np.sum(np.square(y_hats - ys)) * 1 / f(len(y_hats))
 

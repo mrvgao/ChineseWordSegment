@@ -3,9 +3,11 @@ import re
 
 def line_to_sentences(line, need_get_substring=True):
     line = change_text_english(line)
+    hidden_marks = r"""[\u3000\xa0@]"""
+    line = re.compile(hidden_marks).sub("", line)
     split = '||'
-    end_marks = r"""[\u3000\n\r\t\xa0@。；？！?？|;!！【】——]"""
-    # line = replace_in_quote_end_mark(line, end_marks)
+    end_marks = r"""[\n\r\t@。；？！?？|;!！【】——]"""
+    line = replace_in_quote_end_mark(line, end_marks)
     white_space_regex = re.compile(end_marks)
     content = white_space_regex.sub(split, line)
     dont_need_mark = re.compile(r"[\"……]")
@@ -24,7 +26,7 @@ def line_to_sentences(line, need_get_substring=True):
 
 
 def replace_in_quote_end_mark(string, end_mark):
-    new_string = re.sub(r'(?!(([^“]*"){2})*[^”]*$)%s' % end_mark, ',', string)
+    new_string = re.sub(r'(?!(([^“]*"){2})*[^”]*$)。' , '.', string)
     return new_string
 
 

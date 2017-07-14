@@ -3,7 +3,7 @@ This file analysis the complete sentences correlation.
 
 Define: Complete Sentence. e.g 5月24日，省交通运输厅发布消息：今年的端午小长假期间，高速仍正常收取通行费。受高速不免费影响，预计假日车流较“五一”假日有所下降，但高速上下站口仍会出现短时拥堵。
 
-5月24日 and 省交通运输厅发布消息, etc called Sub Sentences, and the whole sentence which is a nature language 
+5月24日 and 省交通运输厅发布消息, etc called Sub Sentences, and the whole sentence which is a nature language
 sentence we called Complete Sentence.
 
 """
@@ -19,6 +19,7 @@ from summary.utils import get_complex_correlation
 from summary.utils import get_sentences_by_distances
 from sentence_manager.utils import add_end_quote
 from sentence_manager.utils import delete_bracket
+from summary.utils import test_if_one_file_fit_summary
 
 
 def get_distances_between_segments_and_one_target(segments, target):
@@ -81,6 +82,8 @@ def get_clean_top_sentences(text, title=None):
     else:
         complex_distances = text_self_dis
 
+    _suitability = test_if_one_file_fit_summary(text, complex_distances)
+
     fit_length = get_fit_length(len(text))
     top_correlations = top_n(complex_distances, sentences, fit_length, title)
     top_sentences = get_sentences_by_distances(complex_distances, sentences, top_correlations)
@@ -89,7 +92,7 @@ def get_clean_top_sentences(text, title=None):
     assumed_summary = "。".join(clean_top_sentence) + '。'
     if title:
         assumed_summary = title + ": " + assumed_summary
-    return assumed_summary
+    return assumed_summary, _suitability
 
 
 def test_text():
@@ -155,5 +158,6 @@ if __name__ == '__main__':
     # test_text()
     # test_sentence()
 
-    summary = test_get_summary()
+    summary, suitability = test_get_summary()
     print(summary)
+    print(suitability)
